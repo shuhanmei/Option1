@@ -11,7 +11,7 @@
 在 PowerShell 中执行：
 
 ```powershell
-Set-Location 'D:\github_clone\Music-'
+Set-Location 'your project location'
 npm ci
 npm run dev
 ```
