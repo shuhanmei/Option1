@@ -1,0 +1,19 @@
+THIRD PARTY NOTICES
+
+MediaPipe Hand Landmarker model (float16/1), JavaScript runtime and WASM
+Google / MediaPipe contributors
+@mediapipe/tasks-vision version 0.10.32
+Licensed under the Apache License, Version 2.0.
+See assets/licenses/MediaPipe-LICENSE.txt.
+https://github.com/google-ai-edge/mediapipe
+https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker
+The package CommonJS bundle is distributed with a .js extension for browser script loading. Its contents are unchanged.
+
+Salamander Grand Piano
+Author: Alexander Holm
+Source: https://github.com/Tonejs/audio/tree/master/salamander
+Licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0).
+https://creativecommons.org/licenses/by/3.0/
+See assets/licenses/Salamander-README.txt and assets/licenses/CC-BY-3.0.txt.
+C4, Ds4, Fs4, A4 and C5 MP3 samples are distributed unchanged.
+The application applies pitch transposition, gain and attack/release envelopes at playback time.

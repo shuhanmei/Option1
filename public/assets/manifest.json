@@ -1,0 +1,95 @@
+{
+  "mediapipe": "0.10.32",
+  "files": [
+    {
+      "path": "mediapipe/wasm/vision_wasm_internal.js",
+      "source": "@mediapipe/tasks-vision@0.10.32",
+      "bytes": 204816,
+      "sha256": "6f6b86509cf9e163ea1cfec7edc8cf53732699c04781e4c21c557c1ba402310e"
+    },
+    {
+      "path": "mediapipe/wasm/vision_wasm_internal.wasm",
+      "source": "@mediapipe/tasks-vision@0.10.32",
+      "bytes": 11453626,
+      "sha256": "cb3ec20026a9aecc2a81a93c25630ceb5389297ddb7a5f0bd61dd09cde606b9b"
+    },
+    {
+      "path": "mediapipe/wasm/vision_wasm_nosimd_internal.js",
+      "source": "@mediapipe/tasks-vision@0.10.32",
+      "bytes": 204669,
+      "sha256": "9f8fc960e363f0fb2f42f7937b97ae9cf9a5630490f71031fa90caa9bb121938"
+    },
+    {
+      "path": "mediapipe/wasm/vision_wasm_nosimd_internal.wasm",
+      "source": "@mediapipe/tasks-vision@0.10.32",
+      "bytes": 10647962,
+      "sha256": "924274fcd5ac8985f6570a8573e7971b7bd2d580ba1b8f3beb0ba8f95db6347c"
+    },
+    {
+      "path": "mediapipe/vision_bundle.js",
+      "source": "@mediapipe/tasks-vision@0.10.32",
+      "bytes": 137315,
+      "sha256": "43c65a77825c5d5af7456d4781a64cd15cb3e53f479ff1f923c12b5adecf2b44"
+    },
+    {
+      "path": "mediapipe/vision_bundle_cjs.js.map",
+      "source": "@mediapipe/tasks-vision@0.10.32",
+      "bytes": 345094,
+      "sha256": "bf0a0643e9a5f6d1ac8aef5c2409faca2c629dd50c61e829fd3f5e11dbdd3425"
+    },
+    {
+      "path": "hand_landmarker.task",
+      "source": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+      "bytes": 7819105,
+      "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+    },
+    {
+      "path": "piano/C4.mp3",
+      "source": "https://tonejs.github.io/audio/salamander/C4.mp3",
+      "bytes": 78718,
+      "sha256": "689eaa4c2fd7f29a2cc0e386eec462156d523a87d701269e5e2458e66056f4f6"
+    },
+    {
+      "path": "piano/Ds4.mp3",
+      "source": "https://tonejs.github.io/audio/salamander/Ds4.mp3",
+      "bytes": 73519,
+      "sha256": "663e8bb3e2d0fa23a30526dcd7ab0e42609c193c07025647ef46badcf81ec211"
+    },
+    {
+      "path": "piano/Fs4.mp3",
+      "source": "https://tonejs.github.io/audio/salamander/Fs4.mp3",
+      "bytes": 68219,
+      "sha256": "613652f5c96e35736ce6a46bc4ddb6ba1076d1fb16a35a4c22c14e67efdde57c"
+    },
+    {
+      "path": "piano/A4.mp3",
+      "source": "https://tonejs.github.io/audio/salamander/A4.mp3",
+      "bytes": 61148,
+      "sha256": "a62df24a2c84cea8d18c1fa8aca7c18c877ba2b76a00a591256fa74d3ce54ac3"
+    },
+    {
+      "path": "piano/C5.mp3",
+      "source": "https://tonejs.github.io/audio/salamander/C5.mp3",
+      "bytes": 68920,
+      "sha256": "2f5b0f7422063010fb379e684bfdf2daa3911dcd2251413d79fa2a53029fdc30"
+    },
+    {
+      "path": "licenses/MediaPipe-LICENSE.txt",
+      "source": "https://api.github.com/repos/google-ai-edge/mediapipe/contents/LICENSE",
+      "bytes": 12331,
+      "sha256": "8707eef0533987efc5b155d64761eeb6e20793f50b9bd1a68dad1cf4719d0ed8"
+    },
+    {
+      "path": "licenses/Salamander-README.txt",
+      "source": "https://api.github.com/repos/Tonejs/audio/contents/salamander/README",
+      "bytes": 1883,
+      "sha256": "04ddba91bcafcb4c53dee7b004479f79af47bb92574f06bbe741b00c3ca64e0e"
+    },
+    {
+      "path": "licenses/CC-BY-3.0.txt",
+      "source": "https://creativecommons.org/licenses/by/3.0/legalcode.txt",
+      "bytes": 19467,
+      "sha256": "e6bc9e9c474700b708f568bac9e5a8a9bcb2b1dad53442f5ba449fcb848b8e76"
+    }
+  ]
+}

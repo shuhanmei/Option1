@@ -1,0 +1,26 @@
+{
+  "name": "air-piano",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "node scripts/check-assets.mjs && tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:e2e": "node scripts/test-browser.mjs",
+    "assets": "node scripts/prepare-assets.mjs",
+    "test:soak": "node scripts/soak.mjs",
+    "format": "prettier --write src tests scripts *.ts *.json index.html public/tracker.worker.js"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.32"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
+    "vite": "7.3.1",
+    "vitest": "4.0.18"
+  }
+}
