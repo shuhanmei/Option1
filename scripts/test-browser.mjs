@@ -7,7 +7,8 @@ try {
     .then((r) => r.ok)
     .catch(() => false);
   if (!available) {
-    if (process.env.TEST_BASE_URL) throw new Error(`请先启动测试服务：${url}`);
+    if (process.env.TEST_BASE_URL)
+      throw new Error(`Start the test server first: ${url}`);
     // Own Vite in this process so Windows teardown needs no taskkill/WMI.
     server = await createServer({
       server: { host: "127.0.0.1", port: 4173, strictPort: true },

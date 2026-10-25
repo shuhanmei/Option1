@@ -1,22 +1,22 @@
 /**
- * 摄像头与识别线程之间的桥接模块。
- * 主线程取帧 → Worker推理 → result回调交给main.ts处理琴键交互。
+ * Bridge between the camera and the inference worker.
+ * Main thread captures frames -> worker infers landmarks -> main.ts processes fingertip interaction.
  */
 import type { Hand } from "./core";
 export interface TrackingResult {
   hands: Hand[];
-  timestamp: number; // 主线程取帧时的时间戳，用来识别迟到结果。
-  ms: number; // Worker处理这一帧的耗时，不是动作到出声的总延迟。
+  timestamp: number; // Main-thread capture timestamp, used to reject stale results.
+  ms: number; // Inference duration for this frame, not total motion-to-sound latency.
 }
 export class CameraTracker {
   private worker?: Worker;
   private stream?: MediaStream;
-  // 同时最多一个取帧/推理任务；繁忙时跳过新帧，不堆积旧画面。
+  // Keep at most one capture/inference task in flight; skip new frames while busy.
   private pending = false;
   private pendingAt = 0;
   private lastVideoTime = -1;
   private lastCapture = 0;
-  // stop时递增，使仍在等待授权的旧openCamera任务失效。
+  // Increment on stop to invalidate an older openCamera waiting for permission.
   private generation = 0;
   private rejectInit?: (reason: Error) => void;
   delegate = "";
@@ -25,10 +25,10 @@ export class CameraTracker {
     private result: (r: TrackingResult) => void,
     private error: (e: Error) => void,
   ) {}
-  /** 请求摄像头并接到video元素；只请求视频，不使用麦克风。 */
+  /** Request video only, without microphone access, and connect it to the video element. */
   async openCamera() {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia)
-      throw new Error("请使用 localhost 或 HTTPS 地址访问，才能开启摄像头。");
+      throw new Error("Use localhost or HTTPS to enable the camera.");
     const generation = this.generation;
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -38,22 +38,24 @@ export class CameraTracker {
       },
       audio: false,
     });
-    // 用户可能在授权弹窗返回前点了结束；迟到的视频流也必须关闭。
+    // If the user ended while permission was pending, stop the late video stream too.
     if (generation !== this.generation) {
       stream.getTracks().forEach((t) => t.stop());
-      throw new Error("启动已取消");
+      throw new Error("Startup canceled");
     }
     this.stream = stream;
     stream.getVideoTracks()[0].addEventListener("ended", () => {
       if (this.stream === stream)
-        this.error(new Error("摄像头已断开，请结束后重新启动。"));
+        this.error(
+          new Error("Camera disconnected. End the session and restart."),
+        );
     });
     this.video.srcObject = stream;
     await this.video.play();
   }
   /**
-   * 创建经典Worker并等待ready消息。Promise把消息回调转成可await的初始化操作。
-   * 初始化失败会reject；初始化成功后的推理错误则通过error回调通知主程序。
+   * Create a classic worker and await its ready message through a Promise.
+   * Reject initialization failures; report later inference errors through the error callback.
    */
   initModel() {
     return new Promise<void>((resolve, reject) => {
@@ -61,7 +63,11 @@ export class CameraTracker {
       this.worker = worker;
       const timeout = window.setTimeout(
         () =>
-          fail(new Error("模型初始化超时，请重试并检查浏览器是否支持 WebGL。")),
+          fail(
+            new Error(
+              "Model initialization timed out. Retry and check that your browser supports WebGL.",
+            ),
+          ),
         45000,
       );
       const fail = (e: Error) => {
@@ -72,7 +78,7 @@ export class CameraTracker {
       this.rejectInit = fail;
       let ready = false;
       worker.onmessage = ({ data }) => {
-        // 重启后旧Worker的消息即使迟到，也不能影响当前会话。
+        // Messages from an old worker must not affect a restarted session.
         if (worker !== this.worker) return;
         if (data.type === "ready") {
           clearTimeout(timeout);
@@ -93,7 +99,7 @@ export class CameraTracker {
       };
       worker.onerror = (event) => {
         const e = new Error(
-          `识别线程错误：${event.message || "请检查本地模型资源"}`,
+          `Tracking worker error: ${event.message || "Check the local model files"}`,
         );
         if (ready) this.error(e);
         else fail(e);
@@ -101,14 +107,14 @@ export class CameraTracker {
       worker.postMessage({ type: "init" });
     });
   }
-  /** 由绘画循环尝试调用；now来自requestAnimationFrame的毫秒时间戳。 */
+  /** Called by the drawing loop; now is the requestAnimationFrame timestamp in milliseconds. */
   capture(now: number) {
     if (this.pending && now - this.pendingAt > 5000) {
       this.pending = false;
-      this.error(new Error("识别超时，请结束后重新启动。"));
+      this.error(new Error("Tracking timed out. End the session and restart."));
       return;
     }
-    // 依次跳过：仍繁忙、线程未创建、视频未就绪、重复帧、距离上次取帧不足30毫秒。
+    // Skip busy, uninitialized, unready, duplicate, or less-than-30-ms-old frames.
     if (
       this.pending ||
       !this.worker ||
@@ -122,7 +128,7 @@ export class CameraTracker {
     this.lastCapture = now;
     this.lastVideoTime = this.video.currentTime;
     const worker = this.worker;
-    // 将当前视频画面转换成可传递的图片，按原比例缩放到640宽。
+    // Convert the current video frame to a transferable bitmap, preserving aspect ratio at width 640.
     createImageBitmap(this.video, {
       resizeWidth: 640,
       resizeHeight: Math.round(
@@ -130,25 +136,25 @@ export class CameraTracker {
       ),
     })
       .then((bitmap) => {
-        // 取图本身也是异步的；等待期间若已结束或重启，就直接释放这张图片。
+        // Bitmap capture is asynchronous; close the image if the session ended or restarted meanwhile.
         if (this.worker !== worker) {
           bitmap.close();
           return;
         }
-        // 最后的[bitmap]转移图片控制权，避免复制大块数据；接收方负责close。
+        // The transfer list moves bitmap ownership without copying; the receiver must close it.
         worker.postMessage({ type: "frame", bitmap, timestamp: now }, [bitmap]);
       })
       .catch((e) => {
         if (this.worker === worker) {
           this.pending = false;
-          this.error(new Error(`视频帧读取失败：${e.message}`));
+          this.error(new Error(`Unable to read video frame: ${e.message}`));
         }
       });
   }
-  /** 终止识别、停止摄像头轨道并解除video连接；仅隐藏video并不能关闭设备。 */
+  /** Terminate inference, stop camera tracks, and disconnect video. Hiding video does not release hardware. */
   stop() {
     this.generation++;
-    this.rejectInit?.(new Error("启动已取消"));
+    this.rejectInit?.(new Error("Startup canceled"));
     this.rejectInit = undefined;
     this.worker?.terminate();
     this.worker = undefined;
@@ -160,15 +166,15 @@ export class CameraTracker {
     this.video.srcObject = null;
   }
 }
-/** 将常见浏览器错误转换成用户能采取行动的中文提示。 */
+/** Turn common browser errors into actionable English messages. */
 export function cameraError(e: unknown): string {
   if (e instanceof DOMException) {
     if (e.name === "NotAllowedError")
-      return "摄像头权限被拒绝。请在地址栏的网站权限中允许摄像头，然后重试。";
+      return "Camera permission denied. Allow the camera in the address bar site permissions, then retry.";
     if (e.name === "NotFoundError")
-      return "未找到摄像头。请连接设备后重试，也可以先使用鼠标试听。";
+      return "No camera found. Connect one and retry, or use mouse playback.";
     if (e.name === "NotReadableError")
-      return "无法读取摄像头。请检查设备是否被其他应用占用。";
+      return "Cannot access the camera. Check whether another app is using it.";
   }
-  return e instanceof Error ? e.message : "启动失败，请重试。";
+  return e instanceof Error ? e.message : "Unable to start. Please retry.";
 }

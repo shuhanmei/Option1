@@ -5,10 +5,10 @@ async function enterLesson(page: Page) {
   await page.goto("/");
   await page.locator("#practice-mode").click();
   await page.locator("#lesson-start").click();
-  await expect(page.locator("#audio-status")).toHaveText("已就绪");
-  await expect(page.locator("#lesson-target")).toHaveText("▼ 请弹 C4");
+  await expect(page.locator("#audio-status")).toHaveText("Ready");
+  await expect(page.locator("#lesson-target")).toHaveText("▼ Play C4");
   await expect(page.locator("#input-feedback")).toContainText(
-    "鼠标/辅助键盘已就绪",
+    "Mouse and keyboard are ready",
   );
 }
 async function pressNote(page: Page, midi: number) {
@@ -16,7 +16,9 @@ async function pressNote(page: Page, midi: number) {
   await page.keyboard.press("Space");
 }
 
-test("选曲、错误停留、连续同音重弹和完整练习结果", async ({ page }) => {
+test("Song selection, wrong-note hold, repeated notes, and full completion", async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await enterLesson(page);
@@ -26,25 +28,33 @@ test("选曲、错误停留、连续同音重弹和完整练习结果", async ({
   });
   await pressNote(page, 62);
   await expect(page.locator("#lesson-progress")).toHaveText("0 / 42");
-  await expect(page.locator("#lesson-feedback")).toContainText("再试一次");
+  await expect(page.locator("#lesson-feedback")).toContainText("Try again");
   await page.locator('.accessible-keys button[data-midi="60"]').focus();
   await page.keyboard.down("Space");
   await expect(page.locator("#lesson-progress")).toHaveText("1 / 42");
-  await expect(page.locator("#lesson-feedback")).toContainText("释放所有琴键");
+  await expect(page.locator("#lesson-feedback")).toContainText(
+    "Release all keys",
+  );
   await page.waitForTimeout(180);
   await expect(page.locator("#lesson-progress")).toHaveText("1 / 42");
   await page.keyboard.up("Space");
   for (const midi of practiceNotes(SONGS[0]).slice(1))
     await pressNote(page, midi);
-  await expect(page.locator("#lesson-target")).toHaveText("练习完成！");
-  await expect(page.locator("#lesson-result")).toContainText("错误输入 1 次");
-  await expect(page.locator("#lesson-result")).toContainText("首次命中率 98%");
+  await expect(page.locator("#lesson-target")).toHaveText("Practice complete!");
+  await expect(page.locator("#lesson-result")).toContainText(
+    "Wrong notes 1 times",
+  );
+  await expect(page.locator("#lesson-result")).toContainText(
+    "First-try accuracy 98%",
+  );
   await page.locator("#lesson-start").click();
   await expect(page.locator("#lesson-progress")).toHaveText("0 / 42");
   await page.locator("#practice-mode").click();
   await page.locator('[data-song="brother"]').click();
-  await expect(page.locator("#lesson-target")).toHaveText("准备开始");
-  await expect(page.locator("#song-source")).toContainText("低音G改为G4");
+  await expect(page.locator("#lesson-target")).toHaveText("Ready to begin");
+  await expect(page.locator("#song-source")).toContainText(
+    "low G changed to G4",
+  );
   await page.locator("#free-mode").click();
   await expect(page.locator("#lesson-panel")).toBeHidden();
   await pressNote(page, 72);
@@ -52,7 +62,7 @@ test("选曲、错误停留、连续同音重弹和完整练习结果", async ({
   expect(errors).toEqual([]);
 });
 
-test("试听隔离用户输入，切歌取消所有旧播放源，重新练习从头开始", async ({
+test("Preview is isolated from user input; changing songs cancels sources and restarting resets progress", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -66,32 +76,34 @@ test("试听隔离用户输入，切歌取消所有旧播放源，重新练习�
   await enterLesson(page);
   await pressNote(page, 60);
   await page.locator("#song-listen").click();
-  await expect(page.locator("#song-listen")).toHaveText("停止试听");
+  await expect(page.locator("#song-listen")).toHaveText("Stop preview");
   await page.waitForTimeout(150);
   await pressNote(page, 60);
   await expect(page.locator("#lesson-progress")).toHaveText("0 / 42");
   await expect(page.locator("#notes")).toHaveText("—");
   await page.locator("#practice-mode").click();
   await page.locator('[data-song="ode"]').click();
-  await expect(page.locator("#song-listen")).toHaveText("试听整首");
+  await expect(page.locator("#song-listen")).toHaveText("Preview song");
   expect(
     await page.evaluate(() => (window as any).__cancelledSources),
   ).toBeGreaterThan(35);
   await page.waitForTimeout(700);
-  await expect(page.locator("#lesson-target")).toHaveText("准备开始");
+  await expect(page.locator("#lesson-target")).toHaveText("Ready to begin");
   await page.locator("#lesson-start").click();
-  await expect(page.locator("#lesson-target")).toHaveText("▼ 请弹 E4");
+  await expect(page.locator("#lesson-target")).toHaveText("▼ Play E4");
   await page.locator("#lesson-library").click();
   await expect(page.locator("#lesson-progress")).toHaveText("0 / 30");
 });
 
-test("鼠标练习暂停与后台释放，进度保留；切回自由弹奏可以正常输入", async ({
+test("Pause mouse practice, retain progress after backgrounding, and return to free play", async ({
   page,
 }) => {
   await enterLesson(page);
   await pressNote(page, 60);
   await page.locator("#lesson-pause").click();
-  await expect(page.locator("#lesson-feedback")).toContainText("练习已暂停");
+  await expect(page.locator("#lesson-feedback")).toContainText(
+    "Practice paused",
+  );
   await pressNote(page, 60);
   await expect(page.locator("#lesson-progress")).toHaveText("1 / 42");
   await page.locator("#lesson-pause").click();
@@ -101,7 +113,9 @@ test("鼠标练习暂停与后台释放，进度保留；切回自由弹奏可�
   await page.keyboard.down("Space");
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
   await expect(page.locator("#notes")).toHaveText("—");
-  await expect(page.locator("#lesson-feedback")).toContainText("练习已暂停");
+  await expect(page.locator("#lesson-feedback")).toContainText(
+    "Practice paused",
+  );
   await page.keyboard.up("Space");
   await page.locator("#lesson-pause").click();
   await expect(page.locator("#lesson-progress")).toHaveText("3 / 42");
@@ -111,10 +125,10 @@ test("鼠标练习暂停与后台释放，进度保留；切回自由弹奏可�
   await expect(page.locator("#notes")).toHaveText("C5");
   await page.keyboard.up("Space");
   await page.locator("#stop").click();
-  await expect(page.locator("#audio-status")).toHaveText("未加载");
+  await expect(page.locator("#audio-status")).toHaveText("Not loaded");
 });
 
-test("准备音色时切歌，迟到的加载不会启动旧歌曲；失败后可重试", async ({
+test("Changing songs during sound loading invalidates old tasks; failed loading can retry", async ({
   page,
 }) => {
   await page.route("**/assets/piano/C4.mp3", async (route) => {
@@ -126,24 +140,26 @@ test("准备音色时切歌，迟到的加载不会启动旧歌曲；失败后�
   await page.locator("#lesson-start").click();
   await page.locator('[data-song="ode"]').click();
   await page.waitForTimeout(900);
-  await expect(page.locator("#lesson-target")).toHaveText("准备开始");
-  await expect(page.locator("#audio-status")).toHaveText("已就绪");
+  await expect(page.locator("#lesson-target")).toHaveText("Ready to begin");
+  await expect(page.locator("#audio-status")).toHaveText("Ready");
   await page.locator("#lesson-start").click();
-  await expect(page.locator("#lesson-target")).toHaveText("▼ 请弹 E4");
+  await expect(page.locator("#lesson-target")).toHaveText("▼ Play E4");
   await page.locator("#stop").click();
   await page.unroute("**/assets/piano/C4.mp3");
   await page.route("**/assets/piano/C4.mp3", (route) =>
     route.fulfill({ status: 503, body: "unavailable" }),
   );
   await page.locator("#lesson-start").click();
-  await expect(page.locator("#audio-status")).toHaveText("加载失败");
+  await expect(page.locator("#audio-status")).toHaveText("Loading failed");
   await expect(page.locator("#lesson-start")).toBeEnabled();
   await page.unroute("**/assets/piano/C4.mp3");
   await page.locator("#lesson-start").click();
-  await expect(page.locator("#lesson-target")).toHaveText("▼ 请弹 E4");
+  await expect(page.locator("#lesson-target")).toHaveText("▼ Play E4");
 });
 
-test("窄屏曲库不溢出，练习高亮与结果区域可用", async ({ page }) => {
+test("Narrow-screen library, targets, and results fit without horizontal overflow", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await enterLesson(page);
   expect(

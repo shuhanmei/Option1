@@ -14,7 +14,9 @@ const packageJson = JSON.parse(
   ),
 );
 if (manifest.mediapipe !== packageJson.version)
-  throw new Error("MediaPipe与静态资源版本不一致，请执行 npm run assets");
+  throw new Error(
+    "MediaPipe and static asset versions differ. Run npm run assets.",
+  );
 for (const file of manifest.files) {
   const bytes = await readFile(new URL(file.path, root));
   if (
@@ -22,7 +24,7 @@ for (const file of manifest.files) {
     createHash("sha256").update(bytes).digest("hex") !== file.sha256
   )
     throw new Error(
-      `资源损坏: ${file.path}。请移除损坏文件后执行 npm run assets。`,
+      `Asset integrity mismatch: ${file.path}. Remove the damaged file and run npm run assets.`,
     );
 }
 console.log(`Verified ${manifest.files.length} local assets (SHA256).`);

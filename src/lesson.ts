@@ -8,11 +8,11 @@ export type LessonState =
   | "paused"
   | "completed";
 
-/** 纯逻辑练习状态机，不依赖页面、音频或MediaPipe，可使用虚拟时钟测试。 */
+/** Pure practice state machine independent of DOM, audio, and MediaPipe; testable with a virtual clock. */
 export class Lesson {
   state: LessonState = "idle";
   notes: number[] = [];
-  index = 0; // 已完成音符数，也就是下一个目标的下标。
+  index = 0; // Completed-note count and index of the next target.
   mistakes = 0;
   firstTry = 0;
   private attempted = false;
@@ -72,7 +72,7 @@ export class Lesson {
     this.since = this.clock();
   }
 
-  /** 只接收用户有效on/off。试听走独立通道，绝不调用这里。 */
+  /** Accept only valid user on/off events. Automatic previews never enter this path. */
   input(event: NoteEvent) {
     if (!this.active) return;
     if (event.type === "off") {
@@ -82,7 +82,7 @@ export class Lesson {
     }
     if (this.held.has(event.midi)) return;
     this.held.add(event.midi);
-    // 成功后等待所有音符释放，按住多个键不会自动清空后续目标。
+    // After success, wait for all held notes to release; held chords cannot consume later targets.
     if (this.state === "release") return;
     if (event.midi !== this.target) {
       this.mistakes++;

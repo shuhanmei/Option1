@@ -5,9 +5,9 @@ import { SongPlayer, type SongAudio } from "../src/song-player";
 
 const song: Song = {
   id: "test",
-  title: "重复音测试",
+  title: "Repeated-note test",
   bpm: 120,
-  difficulty: "测试",
+  difficulty: "Test",
   description: "",
   source: "",
   steps: [
@@ -19,8 +19,8 @@ const song: Song = {
 const on = (midi: number) => ({ type: "on" as const, midi });
 const off = (midi: number) => ({ type: "off" as const, midi });
 
-describe("逐音练习", () => {
-  it("连续同音需要释放，重复on不会推进；最后一个正确音符完成课程", () => {
+describe("Note-by-note practice", () => {
+  it("Repeated pitches require release; duplicate on events do not advance; the last note completes", () => {
     const lesson = new Lesson();
     lesson.start(song);
     lesson.input(on(60));
@@ -38,7 +38,7 @@ describe("逐音练习", () => {
     lesson.input(on(61));
     expect(lesson.mistakes).toBe(0);
   });
-  it("错误只按有效起音计次，已按住的未来目标不能自动完成后续步骤", () => {
+  it("Only valid attacks count as mistakes and a held future target cannot complete automatically", () => {
     const lesson = new Lesson();
     lesson.start(song);
     lesson.input(on(62));
@@ -47,7 +47,7 @@ describe("逐音练习", () => {
     lesson.input(on(60));
     lesson.input(off(60));
     expect(lesson.state).toBe("release");
-    lesson.input(on(60)); // 其他键还没释放，这次不算通过。
+    lesson.input(on(60)); // Other keys are still held; this attack must not pass the step.
     expect(lesson.index).toBe(1);
     lesson.input(off(60));
     lesson.input(off(62));
@@ -58,7 +58,7 @@ describe("逐音练习", () => {
     expect(lesson.firstTry).toBe(2);
     expect(lesson.accuracy).toBe(67);
   });
-  it("暂停保留进度和首次尝试状态，用时排除暂停；清理事件不推进", () => {
+  it("Pause preserves progress and first-attempt state; elapsed time excludes pauses and cleanup", () => {
     let now = 100;
     const lesson = new Lesson(() => now);
     lesson.start(song);
@@ -81,7 +81,7 @@ describe("逐音练习", () => {
     expect(lesson.elapsedMs).toBe(0);
     expect(lesson.target).toBe(64);
   });
-  it("休止只用于试听，完成用时冻结，重置后不接受旧事件", () => {
+  it("Rests affect preview only; completion freezes time and reset rejects old input", () => {
     let now = 0;
     const lesson = new Lesson(() => now);
     lesson.start({
@@ -103,8 +103,8 @@ describe("逐音练习", () => {
   });
 });
 
-describe("曲库校验", () => {
-  it("所有内置曲目都可完整弹奏，曲目编号唯一并覆盖新增C5", () => {
+describe("Song validation", () => {
+  it("Built-in songs have unique IDs, fit the keyboard, and cover C5", () => {
     expect(new Set(SONGS.map((s) => s.id)).size).toBe(SONGS.length);
     for (const s of SONGS) {
       expect(validateSong(s)).toBeUndefined();
@@ -122,15 +122,15 @@ describe("曲库校验", () => {
     { ...song, steps: [] },
     { ...song, bpm: Infinity },
     { ...song, title: "" },
-  ])("阻止无效曲谱开始", (invalid) => {
+  ])("Reject invalid scores before starting", (invalid) => {
     expect(validateSong(invalid)).toBeTruthy();
     expect(() => new Lesson().start(invalid)).toThrow();
   });
 });
 
-describe("试听调度", () => {
+describe("Preview scheduling", () => {
   afterEach(() => vi.useRealTimers());
-  it("按音频时钟预排时值与休止；停止或切歌取消旧音符，定时器不再回调", () => {
+  it("Schedule notes and rests on the audio clock; stop or song changes cancel sources and timers", () => {
     vi.useFakeTimers();
     const audio: SongAudio = {
       time: 10,
@@ -165,7 +165,7 @@ describe("试听调度", () => {
     expect(changed).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
-  it("音频时钟到达末尾后自动停止，坏曲谱不会启动", () => {
+  it("Stop at the audio-clock endpoint and reject invalid scores", () => {
     vi.useFakeTimers();
     const audio = { time: 0, schedule: vi.fn(), cancelScheduled: vi.fn() };
     const player = new SongPlayer(audio, vi.fn());
@@ -177,17 +177,17 @@ describe("试听调度", () => {
     expect(() => player.play({ ...song, bpm: 0 })).toThrow();
     expect(player.playing).toBe(false);
   });
-  it("部分音符排入时钟后发生异常，也会取消已调度音符", () => {
+  it("Cancel scheduled notes when scheduling fails partway through", () => {
     vi.useFakeTimers();
     const schedule = vi
       .fn()
       .mockImplementationOnce(() => {})
       .mockImplementationOnce(() => {
-        throw new Error("音频异常");
+        throw new Error("Audio error");
       });
     const audio = { time: 0, schedule, cancelScheduled: vi.fn() };
     const player = new SongPlayer(audio, vi.fn());
-    expect(() => player.play(song)).toThrow("音频异常");
+    expect(() => player.play(song)).toThrow("Audio error");
     expect(audio.cancelScheduled).toHaveBeenCalledTimes(2);
     expect(player.playing).toBe(false);
     expect(vi.getTimerCount()).toBe(0);

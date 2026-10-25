@@ -1,8 +1,8 @@
 /**
- * 应用入口与总调度。推荐阅读顺序：
- * start准备资源 → draw请求新帧 → onResult处理指尖 → HoverEngine判断触发
- * → NoteOwners发送音符事件 → PianoAudio播放声音，draw同步更新画面。
- * 具体演奏规则见core.ts，摄像头通信见tracking.ts，声音实现见audio.ts。
+ * Application entry point and orchestration. Suggested reading order:
+ * start prepares resources -> draw requests frames -> onResult extracts fingertips -> HoverEngine confirms input
+ * -> NoteOwners emits note events -> PianoAudio plays sound; draw updates the display.
+ * See core.ts for interaction rules, tracking.ts for camera communication, and audio.ts for sound.
  */
 import "./style.css";
 import { PianoAudio } from "./audio";
@@ -31,73 +31,73 @@ import {
 } from "./core";
 
 const icon = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v10h3V4m5 0v10h-3V4M8 14v6m8-6v6" stroke="currentColor" stroke-width="1.5"/></svg>`;
-// 先创建页面结构，后面再按id绑定按钮和设置事件；video和canvas在演奏区内叠放。
+// Build the page before binding controls. Video and canvas share the performance stage.
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-<header class="header"><a class="brand" href="./" aria-label="Air Piano 首页"><span class="brand-icon">${icon}</span>AIR PIANO<span class="brand-divider"></span><span class="brand-cn">指尖之间</span></a><div class="header-right"><span class="local-label"><i></i> 画面仅在本机处理</span><button class="help-button" id="help">使用指南 <span>↗</span></button></div></header>
+<header class="header"><a class="brand" href="./" aria-label="Air Piano Home"><span class="brand-icon">${icon}</span>AIR PIANO<span class="brand-divider"></span><span class="brand-cn">At Your Fingertips</span></a><div class="header-right"><span class="local-label"><i></i> Video stays on your device</span><button class="help-button" id="help">How to play <span>↗</span></button></div></header>
 <main>
-  <section class="intro"><div><div class="eyebrow"><span>INTERACTIVE SOUND EXPERIMENT</span><span class="edition">VOL. 01</span></div><h1>让空气，<span>有了旋律。</span></h1><p>伸出手，让指尖在琴键上短暂停留。每一次移动，都可以成为音乐。</p></div><div class="intro-mark" aria-hidden="true"><span>一双手。一个八度。</span><b>无限种旋律。</b><svg viewBox="0 0 100 36"><path d="M0 18h10l6-13 8 26L34 7l8 20 9-13 7 8h10l7-15 9 22 7-11h9"/></svg></div></section>
-  <section class="learning" aria-label="曲库与逐音练习">
-    <div class="learning-heading"><div><span class="eyebrow">PLAY · LEARN · REPEAT</span><h2>从一首旋律开始。</h2></div><div class="mode-switch" role="group" aria-label="演奏模式"><button id="free-mode" aria-pressed="true">自由弹奏</button><button id="practice-mode" aria-pressed="false">曲目练习</button></div></div>
-    <div id="song-library" hidden><p class="learning-hint">选择一首入门曲，跟着蓝色箭头逐音弹奏。无需赶拍，弹对后再继续。</p>
-      <div class="song-filters"><label>搜索曲目<input id="song-search" type="search" placeholder="输入曲名" /></label><label>难度<select id="song-level"><option value="all">全部难度</option><option value="入门">入门</option><option value="基础">基础</option></select></label><label>音域<select id="song-range"><option value="all">全部音域</option><option value="low">C4～G4以内</option><option value="high">包含C5</option></select></label></div>
-      <div class="song-grid" id="song-grid"></div><p id="song-empty" hidden>没有符合条件的曲目，请调整筛选条件。</p><p class="song-source" id="song-source"></p></div>
-    <details id="history-panel" hidden><summary id="history-summary">本地练习记录</summary><p class="learning-hint">仅保存在本浏览器，保留最近50次，列表显示最近10次，可随时清除。仅比较同一曲目、同一范围的成绩。</p><p id="history-stats"></p><ol id="history-list"></ol><button id="history-clear" class="secondary">清除记录</button></details>
+  <section class="intro"><div><div class="eyebrow"><span>INTERACTIVE SOUND EXPERIMENT</span><span class="edition">VOL. 01</span></div><h1>Give air <span>a melody.</span></h1><p>Reach out and hover your fingertips over the keys. Turn every movement into music.</p></div><div class="intro-mark" aria-hidden="true"><span>Two hands. One octave.</span><b>Endless melodies.</b><svg viewBox="0 0 100 36"><path d="M0 18h10l6-13 8 26L34 7l8 20 9-13 7 8h10l7-15 9 22 7-11h9"/></svg></div></section>
+  <section class="learning" aria-label="Song library and note practice">
+    <div class="learning-heading"><div><span class="eyebrow">PLAY · LEARN · REPEAT</span><h2>Start with a melody.</h2></div><div class="mode-switch" role="group" aria-label="Play mode"><button id="free-mode" aria-pressed="true">Free play</button><button id="practice-mode" aria-pressed="false">Song practice</button></div></div>
+    <div id="song-library" hidden><p class="learning-hint">Choose a beginner song and follow the blue arrow, one note at a time. Play at your own pace.</p>
+      <div class="song-filters"><label>Search songs<input id="song-search" type="search" placeholder="Enter a song title" /></label><label>Level<select id="song-level"><option value="all">All levels</option><option value="Beginner">Beginner</option><option value="Basic">Basic</option></select></label><label>Range<select id="song-range"><option value="all">All ranges</option><option value="low">C4–G4</option><option value="high">Includes C5</option></select></label></div>
+      <div class="song-grid" id="song-grid"></div><p id="song-empty" hidden>No songs match. Try different filters.</p><p class="song-source" id="song-source"></p></div>
+    <details id="history-panel" hidden><summary id="history-summary">Practice history</summary><p class="learning-hint">Saved only in this browser. Stores up to 50 sessions and shows the latest 10. Results compare the same song and note range. Clear anytime.</p><p id="history-stats"></p><ol id="history-list"></ol><button id="history-clear" class="secondary">Clear history</button></details>
   </section>
   <div class="workspace">
-    <section class="instrument" aria-label="虚拟钢琴演奏区">
-      <section id="lesson-panel" class="lesson-panel" aria-label="练习指引" hidden>
-        <div class="lesson-top"><div><span id="lesson-title"></span><strong id="lesson-target">准备开始</strong></div><span id="lesson-progress">0 / 0</span></div>
-        <progress id="lesson-bar" value="0" max="1" aria-label="练习进度"></progress>
-        <div id="lesson-upcoming" class="upcoming" aria-label="后续音符"></div>
-        <details id="practice-options"><summary id="practice-scope">练习范围与试听速度</summary><div class="practice-fields"><label>起始音符<input id="section-start" type="number" min="1" value="1" /></label><label>结束音符<input id="section-end" type="number" min="1" value="42" /></label><button id="section-apply">应用范围</button><button id="section-full">恢复整首</button><label>试听速度<select id="listen-speed"><option value="0.5">0.5倍</option><option value="0.75">0.75倍</option><option value="1" selected>1倍</option><option value="1.25">1.25倍</option></select></label><label class="loop-control"><input id="section-loop" type="checkbox" />循环练习（完成并释放后重来）</label></div><p class="field-hint">范围按非休止音符编号；改变范围会重新开始，试听使用同一范围。</p></details>
+    <section class="instrument" aria-label="Virtual piano">
+      <section id="lesson-panel" class="lesson-panel" aria-label="Practice guide" hidden>
+        <div class="lesson-top"><div><span id="lesson-title"></span><strong id="lesson-target">Ready to begin</strong></div><span id="lesson-progress">0 / 0</span></div>
+        <progress id="lesson-bar" value="0" max="1" aria-label="Practice progress"></progress>
+        <div id="lesson-upcoming" class="upcoming" aria-label="Upcoming notes"></div>
+        <details id="practice-options"><summary id="practice-scope">Practice range and preview speed</summary><div class="practice-fields"><label>First note<input id="section-start" type="number" min="1" value="1" /></label><label>Last note<input id="section-end" type="number" min="1" value="42" /></label><button id="section-apply">Apply range</button><button id="section-full">Full song</button><label>Preview speed<select id="listen-speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option></select></label><label class="loop-control"><input id="section-loop" type="checkbox" />Loop after finishing and releasing all keys</label></div><p class="field-hint">Note numbers exclude rests. Changing the range restarts practice. Preview uses the same range.</p></details>
         <p id="lesson-feedback" role="status" aria-live="polite"></p>
-        <div class="lesson-actions"><button class="primary" id="lesson-start">开始练习</button><button class="secondary" id="lesson-pause" disabled>暂停练习</button><button class="secondary" id="song-listen">试听整首</button><button class="secondary" id="lesson-library">返回曲库</button></div>
+        <div class="lesson-actions"><button class="primary" id="lesson-start">Start practice</button><button class="secondary" id="lesson-pause" disabled>Pause practice</button><button class="secondary" id="song-listen">Preview song</button><button class="secondary" id="lesson-library">Back to library</button></div>
         <div id="lesson-result" class="lesson-result" hidden></div>
-        <button id="lesson-retry" class="secondary" hidden>练习易错片段</button>
-        <p class="lesson-rule">蓝色边框＋▼为目标，绿色为实际发声。每音后移开手指；休止与长短只在试听中体现，练习不评价节奏。</p>
+        <button id="lesson-retry" class="secondary" hidden>Practice tricky section</button>
+        <p class="lesson-rule">The blue outline and arrow mark your target; green shows sounding notes. Release after each note. Timing and rests apply only to previews; practice does not score rhythm.</p>
       </section>
       <div class="stage" id="stage">
         <video id="video" autoplay muted playsinline aria-hidden="true"></video>
-        <canvas id="canvas" aria-label="虚拟琴键，启用鼠标试听后可点击演奏"></canvas>
-        <div class="stage-top"><span class="stage-label"><i id="live-dot"></i><span id="stage-state">演奏空间</span></span><span class="octave-label">C4 — C5 <span>／</span> 13 KEYS</span></div>
-        <div class="stage-message" id="stage-message"><div class="camera-symbol"><svg viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="26" rx="8" stroke="currentColor" stroke-width="1.5"/><circle cx="24" cy="25" r="7" stroke="currentColor" stroke-width="1.5"/><path d="m17 12 3-5h8l3 5" stroke="currentColor" stroke-width="1.5"/></svg></div><h2 id="message-title">下一首，交给你的双手。</h2><p id="message-description">开启摄像头，进入你的空气演奏空间。</p></div>
-        <div class="stage-bottom"><span><i></i> 镜像画面 · 悬停触发</span><span id="hand-count">等待双手入镜</span></div>
+        <canvas id="canvas" aria-label="Virtual piano keys. Enable mouse playback to play."></canvas>
+        <div class="stage-top"><span class="stage-label"><i id="live-dot"></i><span id="stage-state">Your stage</span></span><span class="octave-label">C4 — C5 <span>／</span> 13 KEYS</span></div>
+        <div class="stage-message" id="stage-message"><div class="camera-symbol"><svg viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="26" rx="8" stroke="currentColor" stroke-width="1.5"/><circle cx="24" cy="25" r="7" stroke="currentColor" stroke-width="1.5"/><path d="m17 12 3-5h8l3 5" stroke="currentColor" stroke-width="1.5"/></svg></div><h2 id="message-title">Your hands. Your next melody.</h2><p id="message-description">Turn on your camera and start playing in the air.</p></div>
+        <div class="stage-bottom"><span><i></i> Mirrored view · Hover to play</span><span id="hand-count">Waiting for your hands</span></div>
       </div>
-      <div class="transport"><div class="transport-buttons"><button class="primary" id="start"><span>◉</span> 开始演奏</button><button class="secondary" id="pause" disabled>Ⅱ 暂停</button><button class="icon-button" id="stop" disabled aria-label="结束演奏">■</button></div><div class="current-note"><span>正在发声</span><strong id="notes" aria-live="polite">—</strong></div></div>
-      <div class="instrument-caption"><span class="tiny-dot"></span><span id="caption">无需接触屏幕，让画面中的指尖进入琴键区域即可。</span></div>
-      <div id="input-feedback" class="input-feedback" role="status" aria-live="polite">开启摄像头，或使用鼠标试听。</div>
-      <div class="reach-check"><button id="reach-start" class="secondary">检查琴键可达性</button><span id="reach-status">开启摄像头后，依次用指尖确认左、中、右三个琴键。</span></div>
-      <details id="diagnostics"><summary>触发诊断（可选）</summary><pre id="diagnostic-data"></pre><p class="field-hint">只显示本次运行的计数与触发原因，不记录画面、不上传。</p></details>
+      <div class="transport"><div class="transport-buttons"><button class="primary" id="start"><span>◉</span> Start playing</button><button class="secondary" id="pause" disabled>Ⅱ Pause</button><button class="icon-button" id="stop" disabled aria-label="End session">■</button></div><div class="current-note"><span>Now playing</span><strong id="notes" aria-live="polite">—</strong></div></div>
+      <div class="instrument-caption"><span class="tiny-dot"></span><span id="caption">No screen contact needed. Move your fingertips into the keys on screen.</span></div>
+      <div id="input-feedback" class="input-feedback" role="status" aria-live="polite">Start the camera or enable mouse playback.</div>
+      <div class="reach-check"><button id="reach-start" class="secondary">Check key reach</button><span id="reach-status">With the camera on, use your fingertip to check the left, middle, and right keys.</span></div>
+      <details id="diagnostics"><summary>Trigger diagnostics (optional)</summary><pre id="diagnostic-data"></pre><p class="field-hint">Shows session counters and trigger reasons. No video is recorded or uploaded.</p></details>
       <div id="notice" class="notice" role="status" hidden></div>
-      <div class="accessible-keys" aria-label="键盘演奏，聚焦音符后按空格或回车"></div>
+      <div class="accessible-keys" aria-label="Keyboard controls: focus a note, then press Space or Enter"></div>
     </section>
-    <aside class="panel" aria-label="演奏设置">
-      <div class="panel-heading"><span>演奏设置</span><span class="panel-tag">YOUR SESSION</span></div>
-      <div class="statuses" aria-label="系统状态"><div><i id="camera-dot"></i><span>摄像头</span><b id="camera-status">未开启</b></div><div><i id="model-dot"></i><span>手部追踪</span><b id="model-status">未加载</b></div><div><i id="audio-dot"></i><span>钢琴音色</span><b id="audio-status">未加载</b></div></div>
-      <div class="setting-block"><div class="field-title"><label for="volume">演奏音量</label><output id="volume-value"></output></div><input id="volume" type="range" min="0" max="100" step="1" aria-label="演奏音量"/><div class="range-ends"><span>安静一点</span><span>尽情演奏</span></div></div>
-      <div class="setting-block"><div class="field-title"><label for="dwell">悬停时间</label><output id="dwell-value"></output></div><input id="dwell" type="range" min="50" max="300" step="10" aria-label="悬停时间"/><p class="field-hint">停留后发声，时间越长越不易误触。</p></div>
-      <div class="setting-block"><div class="field-title"><span>参与演奏的手指</span></div><div class="segmented" role="group" aria-label="参与演奏的手指"><button id="index-fingers">双食指 <small>推荐入门</small></button><button id="all-fingers">全部手指 <small>多指和弦</small></button></div><label class="switch-row" for="skeleton"><span>显示手部骨架</span><input id="skeleton" type="checkbox" role="switch"/></label></div>
-      <details class="layout-settings"><summary>琴键布局 <span>位置与大小</span></summary><div class="layout-fields">${[
-        ["width", "琴键宽度", 50, 96],
-        ["height", "琴键高度", 18, 45],
-        ["x", "水平位置", 0, 100],
-        ["y", "垂直位置", 0, 100],
+    <aside class="panel" aria-label="Session settings">
+      <div class="panel-heading"><span>Session settings</span><span class="panel-tag">YOUR SESSION</span></div>
+      <div class="statuses" aria-label="System status"><div><i id="camera-dot"></i><span>Camera</span><b id="camera-status">Off</b></div><div><i id="model-dot"></i><span>Hand tracking</span><b id="model-status">Not loaded</b></div><div><i id="audio-dot"></i><span>Piano sound</span><b id="audio-status">Not loaded</b></div></div>
+      <div class="setting-block"><div class="field-title"><label for="volume">Volume</label><output id="volume-value"></output></div><input id="volume" type="range" min="0" max="100" step="1" aria-label="Volume"/><div class="range-ends"><span>Softer</span><span>Louder</span></div></div>
+      <div class="setting-block"><div class="field-title"><label for="dwell">Hover delay</label><output id="dwell-value"></output></div><input id="dwell" type="range" min="50" max="300" step="10" aria-label="Hover delay"/><p class="field-hint">Hover to play. A longer delay reduces accidental notes.</p></div>
+      <div class="setting-block"><div class="field-title"><span>Active fingers</span></div><div class="segmented" role="group" aria-label="Active fingers"><button id="index-fingers">Index fingers <small>Recommended</small></button><button id="all-fingers">All fingers <small>Chords</small></button></div><label class="switch-row" for="skeleton"><span>Show hand skeleton</span><input id="skeleton" type="checkbox" role="switch"/></label></div>
+      <details class="layout-settings"><summary>Keyboard layout <span>Position and size</span></summary><div class="layout-fields">${[
+        ["width", "Key width", 50, 96],
+        ["height", "Key height", 18, 45],
+        ["x", "Horizontal position", 0, 100],
+        ["y", "Vertical position", 0, 100],
       ]
         .map(
           ([id, label, min, max]) =>
             `<div><div class="field-title"><label for="layout-${id}">${label}</label><output id="layout-${id}-value"></output></div><input id="layout-${id}" type="range" min="${min}" max="${max}" step="1"/></div>`,
         )
         .join("")}</div></details>
-      <button class="reset-button" id="reset">↺ 恢复默认设置</button>
-      <div class="performance"><span><i></i> <span id="fps">—</span> FPS</span><span>推理 <b id="inference">—</b> ms</span></div>
+      <button class="reset-button" id="reset">↺ Reset settings</button>
+      <div class="performance"><span><i></i> <span id="fps">—</span> FPS</span><span>Inference <b id="inference">—</b> ms</span></div>
     </aside>
   </div>
-  <section class="guide" aria-label="快速入门"><div class="guide-heading"><span class="eyebrow">A LITTLE GUIDANCE</span><h2>三步，开始你的即兴。</h2></div><div class="guide-step"><b>01</b><div><h3>开启你的空间</h3><p>允许摄像头访问，让双手清晰入镜。</p></div></div><div class="guide-step"><b>02</b><div><h3>找到你的琴键</h3><p>看着镜像画面，将指尖移到琴键内。</p></div></div><div class="guide-step"><b>03</b><div><h3>停留，然后奏响</h3><p>短暂停留发音，移开后即可再次弹奏。</p></div></div></section>
+  <section class="guide" aria-label="Quick start"><div class="guide-heading"><span class="eyebrow">A LITTLE GUIDANCE</span><h2>Three steps to your first melody.</h2></div><div class="guide-step"><b>01</b><div><h3>Set the stage</h3><p>Allow camera access and keep both hands clearly visible.</p></div></div><div class="guide-step"><b>02</b><div><h3>Find your keys</h3><p>Watch the mirrored view and move a fingertip into a key.</p></div></div><div class="guide-step"><b>03</b><div><h3>Hover, then play</h3><p>Hold briefly to play. Move away and return to play again.</p></div></div></section>
 </main>
-<footer><span>AIR PIANO <span class="footer-dot">·</span> 指尖之间</span><span>没有摄像头？<button id="demo">开启鼠标试听 ↗</button></span><span>用双手，感受音乐。</span></footer>
-<dialog id="help-dialog"><div class="dialog-header"><span class="eyebrow">GET STARTED</span><button id="close-help" aria-label="关闭指南">×</button></div><h2>让指尖与琴键相遇。</h2><ol><li>在光线均匀的环境下，固定电脑摄像头，让手掌与指尖完整入镜。</li><li>点击“开始演奏”，允许摄像头访问，等待追踪和音色准备完成。</li><li>看着镜像画面移动食指，让指尖标记进入琴键，停留后发音。此时手指在空中移动，无需碰屏幕。</li><li>移开再进入可重复弹奏。“全部手指”支持和弦；布局可调整琴键的大小和位置。</li></ol><p>手指交叠、快速移动或弱光可能影响追踪。先使用双食指熟悉操作。切换后台会自动暂停。</p><div class="dialog-credit">钢琴音色：Salamander Grand Piano · Alexander Holm<br><a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a> · 采样经 Tone.js Audio 分发，按音高变调。<br>视频仅在本机处理，不上传也不录制。</div></dialog>`;
+<footer><span>AIR PIANO <span class="footer-dot">·</span> At Your Fingertips</span><span>No camera? <button id="demo">Enable mouse playback ↗</button></span><span>Feel the music in your hands.</span></footer>
+<dialog id="help-dialog"><div class="dialog-header"><span class="eyebrow">GET STARTED</span><button id="close-help" aria-label="Close guide">×</button></div><h2>Bring your fingertips to the keys.</h2><ol><li>Keep your camera steady in even lighting, with your palms and fingertips fully visible.</li><li>Click Start playing, allow camera access, and wait for tracking and piano sounds to load.</li><li>Move your index finger in the mirrored view. Hover its marker over a key to play. Keep your hands in the air; there is no need to touch the screen.</li><li>Move away and return to repeat a note. All fingers enables chords. Adjust the key size and position in Keyboard layout.</li></ol><p>Overlapping fingers, fast movement, and low light can affect tracking. Start with index fingers. Switching away automatically pauses playback.</p><div class="dialog-credit">Piano sound: Salamander Grand Piano · Alexander Holm<br><a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a> · Samples distributed by Tone.js Audio and transposed to each pitch.<br>Video stays on your device. Nothing is uploaded or recorded.</div></dialog>`;
 
-// 按id获取页面元素的简写。泛型T只帮助TypeScript识别元素类型，不生成额外界面。
+// Look up elements by ID. The generic type only helps TypeScript and creates no UI.
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const video = $<HTMLVideoElement>("video");
@@ -111,14 +111,14 @@ try {
   settings = structuredClone(DEFAULT_SETTINGS);
 }
 audio.setVolume(settings.volume);
-// 会话状态决定按钮可用性和是否提交新帧；暂停保留摄像头，结束则释放资源。
+// Session state controls buttons and frame submission. Pause retains the camera; end releases it.
 let mode: "stopped" | "starting" | "running" | "paused" | "stopping" =
   "stopped";
-// 每次启动/结束递增，用来丢弃旧会话的异步结果，防止结束后又被“迟到的成功”恢复。
+// Increment on start/end to invalidate asynchronous results from older sessions.
 let token = 0;
 let width = 1000,
   height = 750;
-/** 把琴键限制在视频实际显示区域内，避免画到指尖无法到达的留白中。 */
+/** Keep keys inside the visible video content so fingertips can reach every key. */
 function keyboardGeometry(): PianoKey[] {
   const sw = video.videoWidth || 640,
     sh = video.videoHeight || 480;
@@ -152,7 +152,7 @@ let history: PracticeRecord[] = [];
 try {
   history = readHistory(localStorage.getItem(HISTORY_KEY), SONGS);
 } catch {
-  /* 存储不可用时仍能练习。 */
+  /* Practice remains available when storage is unavailable. */
 }
 let staleResults = 0,
   lastInference = 0,
@@ -160,11 +160,11 @@ let staleResults = 0,
 let calibration: number | undefined;
 const reachTargets = [60, 67, 72];
 const songPlayer = new SongPlayer(audio, renderLesson);
-// 音符占用模块只发on/off事件；这里统一连接声音、当前音名和辅助按钮状态。
+// Connect note ownership events to audio, current note labels, and accessible key state.
 const noteOwners = new NoteOwners((event) => {
   if (event.type === "on") audio.on(event.midi);
   else audio.off(event.midi);
-  // 这里只经过摄像头、鼠标或辅助键盘的用户事件；自动试听直接交给SongPlayer。
+  // Only user input reaches this path. SongPlayer schedules automatic previews separately.
   lesson.input(event);
   if (
     calibration !== undefined &&
@@ -178,11 +178,11 @@ const noteOwners = new NoteOwners((event) => {
     if (calibration === reachTargets.length) {
       calibration = undefined;
       $("reach-status").textContent =
-        "检查完成：左、中、右琴键都可以触达。布局已沿用当前设置。";
-      $("reach-start").textContent = "重新检查可达性";
+        "Check complete: all three keys are reachable. Your current layout is retained.";
+      $("reach-start").textContent = "Check reach again";
     } else
       $("reach-status").textContent =
-        `请移开，再用指尖确认 ${noteName(reachTargets[calibration])}；够不到时可调整“琴键布局”。`;
+        `Move away, then use your fingertip to play ${noteName(reachTargets[calibration])}. Adjust Keyboard layout if needed.`;
   }
   saveCompletion();
   if (
@@ -211,7 +211,7 @@ const noteOwners = new NoteOwners((event) => {
       ),
     );
 });
-// 三个模块协作：关联同一只手 → 判断手指悬停 → 由noteOwners管理发音占用。
+// Associate hands, confirm fingertip hover, then let noteOwners manage sounding notes.
 const hover = new HoverEngine(noteOwners, settings.dwell);
 const associator = new HandTracker();
 const tracker = new CameraTracker(video, onResult, (error) => {
@@ -230,7 +230,7 @@ function status(
   $(`${id}-status`).textContent = label;
   $(`${id}-dot`).className = state;
 }
-/** 清理本次交互：释放所有来源的音符，丢弃旧手部、鼠标与键盘状态。 */
+/** Release every input source and clear hand, mouse, and keyboard state. */
 function clearNotes() {
   clearingNotes = true;
   hover.reset();
@@ -243,7 +243,7 @@ function clearNotes() {
   pointerNote = undefined;
   clearingNotes = false;
 }
-/** 仅将当前状态反映到界面，不在此启动摄像头、模型或声音。 */
+/** Reflect state in the UI without starting camera, model, or audio resources. */
 function updateUI() {
   $("start").toggleAttribute(
     "disabled",
@@ -257,7 +257,7 @@ function updateUI() {
       lesson.state !== "paused",
   );
   $("pause").textContent =
-    mode === "paused" || lesson.state === "paused" ? "▷ 继续" : "Ⅱ 暂停";
+    mode === "paused" || lesson.state === "paused" ? "▷ Resume" : "Ⅱ Pause";
   $("stop").toggleAttribute(
     "disabled",
     (mode === "stopped" && !audio.ready && !lessonLoading) ||
@@ -265,8 +265,8 @@ function updateUI() {
   );
   $("start").innerHTML =
     mode === "starting"
-      ? '<span class="spinner"></span> 正在准备'
-      : "<span>◉</span> 开始演奏";
+      ? '<span class="spinner"></span> Getting ready'
+      : "<span>◉</span> Start playing";
   $("demo").toggleAttribute(
     "disabled",
     demoLoading || lessonLoading || mode === "starting" || mode === "stopping",
@@ -280,32 +280,32 @@ function updateUI() {
   );
   $("live-dot").classList.toggle("live", mode === "running");
   $("stage-state").textContent = {
-    stopped: "演奏空间",
-    starting: "正在准备",
-    running: "LIVE · 正在演奏",
-    paused: "已暂停",
-    stopping: "正在结束",
+    stopped: "Your stage",
+    starting: "Getting ready",
+    running: "LIVE · Playing",
+    paused: "Paused",
+    stopping: "Ending session",
   }[mode];
   if (mode === "starting") {
-    $("message-title").textContent = "你的演奏空间，正在准备。";
+    $("message-title").textContent = "Getting your stage ready.";
     $("message-description").textContent =
-      "请允许摄像头访问，首次加载可能需要一些时间。";
+      "Allow camera access. The first load may take a moment.";
   }
   if (mode === "paused") {
-    $("message-title").textContent = "留一点空白，给下一段旋律。";
+    $("message-title").textContent = "Take a breath between melodies.";
     $("message-description").textContent =
-      "声音与识别已暂停，摄像头仍保持开启；继续时复用当前连接。";
+      "Sound and tracking are paused. Your camera stays connected for a quick resume.";
   }
   if (mode === "stopped") {
     $("message-title").textContent = audio.ready
-      ? "鼠标也能奏响旋律。"
-      : "下一首，交给你的双手。";
+      ? "Make music with your mouse."
+      : "Your hands. Your next melody.";
     $("message-description").textContent = audio.ready
-      ? "点击琴键试听；开启摄像头，体验双手演奏。"
-      : "开启摄像头，进入你的空气演奏空间。";
+      ? "Click the keys to play, or start the camera to use your hands."
+      : "Turn on your camera and start playing in the air.";
   }
 }
-/** 一次启动必须等摄像头、模型、音频全部准备好；任何一步失败都进入清理。 */
+/** Wait for camera, model, and audio together. Any failure triggers cleanup. */
 async function start() {
   if (mode !== "stopped" || demoLoading || lessonLoading) return;
   suspendLearning();
@@ -315,28 +315,29 @@ async function start() {
   clearNotes();
   showNotice("");
   updateUI();
-  status("camera", "等待授权", "loading");
-  status("model", "加载中", "loading");
-  status("audio", "准备中", "loading");
+  status("camera", "Awaiting permission", "loading");
+  status("model", "Loading", "loading");
+  status("audio", "Preparing", "loading");
   try {
-    // 并行准备三种资源；各自的then只更新状态，全部成功后才切换到running。
+    // Prepare all three resources concurrently; switch to running only after all succeed.
     await Promise.all([
       tracker.openCamera().then(() => {
-        if (current === token) status("camera", "已开启", "ready");
+        if (current === token) status("camera", "On", "ready");
       }),
       tracker.initModel().then(() => {
-        if (current === token) status("model", "已就绪", "ready");
+        if (current === token) status("model", "Ready", "ready");
       }),
       audio
         .prepare((n) => {
-          if (current === token) status("audio", `采样 ${n}/5`, "loading");
+          if (current === token) status("audio", `Samples ${n}/5`, "loading");
         })
         .then(() => {
-          if (current === token) status("audio", "已就绪", "ready");
+          if (current === token) status("audio", "Ready", "ready");
         }),
     ]);
     if (current !== token) return;
-    if (!audio.ready) throw new Error("浏览器暂停了音频，请重试。");
+    if (!audio.ready)
+      throw new Error("Your browser suspended audio. Please try again.");
     if (document.hidden) {
       await end();
       return;
@@ -347,14 +348,14 @@ async function start() {
     lastResult = 0;
     updateUI();
     $("caption").textContent =
-      "让指尖标记进入琴键，停留后发音；移开后可再次弹奏。";
+      "Hover your fingertip marker over a key to play. Move away to play again.";
   } catch (e) {
     if (current !== token) return;
     await end();
     showNotice(cameraError(e), true);
   }
 }
-/** 先使旧任务失效，再释放声音、识别线程和视频流，最后恢复初始界面。 */
+/** Invalidate old tasks, then release audio, worker, and video resources and reset the UI. */
 async function end() {
   suspendLearning();
   const endingToken = ++token;
@@ -367,34 +368,35 @@ async function end() {
   await audio.close();
   if (endingToken !== token) return;
   mode = "stopped";
-  status("camera", "未开启");
-  status("model", "未加载");
-  status("audio", "未加载");
+  status("camera", "Off");
+  status("model", "Not loaded");
+  status("audio", "Not loaded");
   $("fps").textContent = "—";
   $("inference").textContent = "—";
-  $("hand-count").textContent = "等待双手入镜";
-  $("demo").textContent = "开启鼠标试听 ↗";
-  $("caption").textContent = "无需接触屏幕，让画面中的指尖进入琴键区域即可。";
+  $("hand-count").textContent = "Waiting for your hands";
+  $("demo").textContent = "Enable mouse playback ↗";
+  $("caption").textContent =
+    "No screen contact needed. Move your fingertips into the keys on screen.";
   updateUI();
 }
 async function failSession(error: Error) {
   if (mode === "stopped" || mode === "stopping") return;
   await end();
-  status("model", "已停止", "error");
+  status("model", "Stopped", "error");
   showNotice(error.message, true);
 }
-// 暂停只清理交互，不关闭摄像头；draw在paused状态下不会继续提交新帧。
+// Pause clears input but keeps the camera. draw submits no frames while paused.
 function pause() {
   if (mode !== "running") return;
   suspendLearning();
   mode = "paused";
   clearNotes();
-  $("hand-count").textContent = "演奏已暂停";
-  status("camera", "保持连接", "ready");
-  status("model", "已暂停");
+  $("hand-count").textContent = "Playing paused";
+  status("camera", "Connected", "ready");
+  status("model", "Paused");
   updateUI();
 }
-// 继续时重新启用可能暂停的音频，并清空旧手指状态，让用户重新悬停确认。
+// Resume audio and clear old finger state so each key requires fresh hover confirmation.
 async function resume() {
   if (lesson.state === "paused" && practicing) {
     await prepareLearning("resume");
@@ -409,16 +411,16 @@ async function resume() {
     mode = "running";
     frameTimes = [];
     lastResult = 0;
-    status("camera", "已开启", "ready");
-    status("model", "已就绪", "ready");
+    status("camera", "On", "ready");
+    status("model", "Ready", "ready");
     updateUI();
   } catch (e) {
     showNotice(cameraError(e), true);
   }
 }
-/** 识别结果进入演奏逻辑的入口：手部关联 → 坐标映射 → 选指尖 → 悬停判断。 */
+/** Tracking result pipeline: associate hands, map coordinates, select fingertips, confirm hover. */
 function onResult(result: TrackingResult) {
-  // 停止/暂停期间忽略结果；超过200毫秒的旧画面也不能拿来触发当前琴键。
+  // Ignore stopped/paused input and results older than 200 ms to prevent stale notes.
   if (mode !== "running") return;
   lastInference = result.ms;
   lastFrameAge = performance.now() - result.timestamp;
@@ -427,14 +429,14 @@ function onResult(result: TrackingResult) {
     return;
   }
   lastResult = performance.now();
-  // 统计最近1秒接受的识别结果数；这里的FPS不是屏幕或Canvas的刷新率。
+  // Count accepted tracking results in the last second, rather than canvas refreshes.
   frameTimes.push(lastResult);
   frameTimes = frameTimes.filter((t) => lastResult - t < 1000);
   $("fps").textContent = String(frameTimes.length);
   $("inference").textContent = result.ms.toFixed(0);
   $("hand-count").textContent = result.hands.length
-    ? `${result.hands.length} 只手已入镜`
-    : "请将双手放入画面";
+    ? `${result.hands.length} hands detected`
+    : "Put your hands in view";
   const tracked = associator.update(result.hands, lastResult);
   renderHands = tracked.map((t) => ({
     id: t.id,
@@ -448,9 +450,9 @@ function onResult(result: TrackingResult) {
       ),
     ),
   }));
-  // MediaPipe指尖编号：拇指4、食指8、中指12、无名指16、小指20。
+  // MediaPipe fingertip indices: thumb 4, index 8, middle 12, ring 16, little finger 20.
   const tips = settings.fingers === "all" ? [4, 8, 12, 16, 20] : [8];
-  // 组合手部编号和关键点编号，使每根手指独立计时；flatMap将双手指尖合成一张列表。
+  // Combine hand ID and landmark index so each fingertip has an independent timer.
   if (
     lessonLoading ||
     songPlayer.playing ||
@@ -468,19 +470,21 @@ function onResult(result: TrackingResult) {
     lastResult,
   );
 }
-/** 设置仅保存在当前浏览器本地；JSON.stringify把设置对象转换成可保存的文本。 */
+/** Save settings in this browser; JSON.stringify converts the object to storage text. */
 function persist() {
   try {
     localStorage.setItem("air-piano:v1", JSON.stringify(settings));
   } catch {
-    showNotice("浏览器未允许保存设置。本次会话仍可使用。");
+    showNotice(
+      "Your browser blocked saving settings. You can still use this session.",
+    );
   }
 }
 function currentPracticeSong() {
   return songSection(selectedSong, sectionStart, sectionEnd);
 }
 
-/** 完成记录只写入一次，暂停、重画和最后一次off都不能重复累计。 */
+/** Save each completion once; redraws and the final release must not duplicate it. */
 function saveCompletion() {
   if (lesson.state !== "completed" || recorded) return;
   recorded = true;
@@ -499,12 +503,15 @@ function saveCompletion() {
   try {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch {
-    showNotice("无法保存练习记录，本次结果仍可查看。");
+    showNotice(
+      "Unable to save practice history. Your current result is still available.",
+    );
   }
   renderHistory();
 }
 function renderHistory() {
-  $("history-summary").textContent = `本地练习记录（${history.length}次）`;
+  $("history-summary").textContent =
+    `Practice history (${history.length} sessions)`;
   const matching = history.filter(
     (row) =>
       row.songId === selectedSong.id &&
@@ -514,12 +521,12 @@ function renderHistory() {
   const accuracy = (row: PracticeRecord) =>
     Math.round((row.firstTry / (row.end - row.start)) * 100);
   $("history-stats").textContent = matching.length
-    ? `${selectedSong.title} · 当前范围已练习 ${matching.length} 次，最近 ${accuracy(matching[0])}%，最佳 ${Math.max(...matching.map(accuracy))}%。`
-    : "当前曲目和范围尚无完成记录。";
+    ? `${selectedSong.title} · Sessions for this range: ${matching.length}; latest ${accuracy(matching[0])}%; best ${Math.max(...matching.map(accuracy))}%.`
+    : "No completed sessions for this song and range yet.";
   $("history-list").replaceChildren(
     ...history.slice(0, 10).map((row) => {
       const item = document.createElement("li");
-      item.textContent = `${new Date(row.at).toLocaleString("zh-CN")} · ${SONGS.find((song) => song.id === row.songId)!.title} 第${row.start + 1}～${row.end}音 · 首次命中 ${accuracy(row)}% · 错误 ${row.mistakes} 次 · ${(row.elapsedMs / 1000).toFixed(1)}秒`;
+      item.textContent = `${new Date(row.at).toLocaleString("en-US")} · ${SONGS.find((song) => song.id === row.songId)!.title} Notes ${row.start + 1}–${row.end} · First try ${accuracy(row)}% · Errors ${row.mistakes} times · ${(row.elapsedMs / 1000).toFixed(1)}s`;
       return item;
     }),
   );
@@ -554,7 +561,7 @@ function filterSongs() {
     });
   $("song-empty").hidden = visible > 0;
 }
-/** 曲库界面只显示控制器的状态，不通过颜色或DOM内容反推练习进度。 */
+/** Render controller state without inferring practice progress from DOM text or colors. */
 function renderLesson() {
   $("song-library").hidden = !practicing || !libraryOpen;
   $("history-panel").hidden = !practicing;
@@ -578,21 +585,21 @@ function renderLesson() {
   const started = lesson.state !== "idle";
   $("lesson-title").textContent = selectedSong.title;
   $("practice-scope").textContent =
-    `第${sectionStart + 1}～${sectionEnd}音 / 共${practiceNotes(selectedSong).length}音 · 范围与试听速度`;
+    `Notes ${sectionStart + 1}–${sectionEnd} / total ${practiceNotes(selectedSong).length} notes · Range and preview speed`;
   $("song-source").textContent =
-    `${selectedSong.source} · ${selectedSong.bpm} BPM（试听速度）`;
+    `${selectedSong.source} · ${selectedSong.bpm} BPM (preview tempo)`;
   $("lesson-target").textContent = songPlayer.playing
-    ? `试听中 · ${songPlayer.current === undefined ? "准备 / 休止" : noteName(songPlayer.current)}`
+    ? `Previewing · ${songPlayer.current === undefined ? "Ready / Rest" : noteName(songPlayer.current)}`
     : lesson.state === "completed"
-      ? "练习完成！"
+      ? "Practice complete!"
       : lesson.target === undefined
-        ? "准备开始"
-        : `▼ 请弹 ${noteName(lesson.target)}`;
+        ? "Ready to begin"
+        : `▼ Play ${noteName(lesson.target)}`;
   $("lesson-progress").textContent = `${lesson.index} / ${notes.length}`;
   const bar = $<HTMLProgressElement>("lesson-bar");
   bar.max = notes.length || 1;
   bar.value = lesson.index;
-  $("lesson-upcoming").textContent = `接下来：${
+  $("lesson-upcoming").textContent = `Up next: ${
     notes
       .slice(started ? lesson.index + 1 : 0, started ? lesson.index + 6 : 5)
       .map(noteName)
@@ -601,28 +608,30 @@ function renderLesson() {
   $("lesson-feedback").textContent =
     error ||
     (lessonLoading
-      ? "正在准备音色…"
+      ? "Loading piano sounds…"
       : songPlayer.playing
-        ? "先听一遍旋律。试听不计入练习，可随时停止。"
+        ? "Listen to the melody first. Preview does not count toward practice. Stop anytime."
         : lesson.state === "release"
-          ? "弹对了！请先释放所有琴键，再弹下一个音。"
+          ? "Correct! Release all keys before playing the next note."
           : lesson.state === "paused"
-            ? "练习已暂停，进度已保留。继续后请重新触发目标琴键。"
+            ? "Practice paused. Your progress is saved. Resume and play the target key again."
             : lesson.state === "completed"
-              ? "这首曲目已完成，可以重新练习或选择其他歌曲。"
+              ? "Song complete! Practice again or choose another song."
               : lesson.wrong && lesson.wrong.until > performance.now()
-                ? `再试一次，请弹 ${noteName(lesson.target!)}。`
+                ? `Try again. Play ${noteName(lesson.target!)}.`
                 : lesson.state === "playing"
-                  ? "跟随蓝色箭头，弹对后继续。"
-                  : "可使用摄像头，也可直接开始后用鼠标或辅助音符按钮练习。");
-  $("lesson-start").textContent = started ? "重新开始" : "开始练习";
+                  ? "Follow the blue arrow. Play the correct note to continue."
+                  : "Use the camera, or start with your mouse or accessible note buttons.");
+  $("lesson-start").textContent = started ? "Restart" : "Start practice";
   const busy =
     lessonLoading || demoLoading || mode === "starting" || mode === "stopping";
   $("lesson-start").toggleAttribute("disabled", busy || !!error);
   $("song-listen").toggleAttribute("disabled", busy || !!error);
-  $("song-listen").textContent = songPlayer.playing ? "停止试听" : "试听整首";
+  $("song-listen").textContent = songPlayer.playing
+    ? "Stop preview"
+    : "Preview song";
   $("lesson-pause").textContent =
-    lesson.state === "paused" ? "继续练习" : "暂停练习";
+    lesson.state === "paused" ? "Resume practice" : "Pause practice";
   $("lesson-pause").toggleAttribute(
     "disabled",
     busy || (!lesson.active && lesson.state !== "paused"),
@@ -632,19 +641,19 @@ function renderLesson() {
     lesson.state !== "completed" || !lesson.mistakeSteps.size;
   if (lesson.state === "completed") {
     $("lesson-result").textContent =
-      `完成 ${lesson.index} 个音符 · 错误输入 ${lesson.mistakes} 次 · 首次命中率 ${lesson.accuracy}% · 有效用时 ${(lesson.elapsedMs / 1000).toFixed(1)} 秒（不评价节奏）`;
+      `Completed ${lesson.index} notes · Wrong notes ${lesson.mistakes} times · First-try accuracy ${lesson.accuracy}% · Active time ${(lesson.elapsedMs / 1000).toFixed(1)} s (rhythm is not scored)`;
   }
   $("stage-message").hidden =
     mode === "running" || (practicing && (started || songPlayer.playing));
 }
 
-/** 使旧异步操作失效，并在释放音符之前暂停判定，避免清理事件改变当前步骤。 */
+/** Invalidate asynchronous work and pause assessment before releasing notes. */
 function suspendLearning() {
   allowLoop = false;
   if (calibration !== undefined) {
     calibration = undefined;
-    $("reach-status").textContent = "可达性检查已暂停，可重新开始。";
-    $("reach-start").textContent = "检查琴键可达性";
+    $("reach-status").textContent = "Reach check paused. You can restart it.";
+    $("reach-start").textContent = "Check key reach";
   }
   ++lessonGeneration;
   lessonLoading = false;
@@ -662,7 +671,7 @@ function resetLesson() {
   updateUI();
 }
 
-/** 由按钮点击启用音频；代号检查防止切歌/结束后旧加载结果启动上一首曲子。 */
+/** Enable audio from a click; generation checks prevent old loads from restarting an earlier song. */
 async function prepareLearning(action: "start" | "resume" | "listen") {
   if (
     lessonLoading ||
@@ -681,22 +690,25 @@ async function prepareLearning(action: "start" | "resume" | "listen") {
   const generation = ++lessonGeneration;
   const song = currentPracticeSong();
   lessonLoading = true;
-  status("audio", "准备中", "loading");
+  status("audio", "Preparing", "loading");
   renderLesson();
   updateUI();
   try {
     await audio.prepare();
     if (generation !== lessonGeneration || document.hidden) return;
-    if (!audio.ready) throw new Error("浏览器暂停了音频，请重新点击。");
-    // 恢复摄像头会话后再恢复课程，二者共享同一次音频授权。
+    if (!audio.ready)
+      throw new Error(
+        "Your browser suspended audio. Click again to enable it.",
+      );
+    // Resume the camera session before the lesson, using the same audio authorization.
     if (mode === "paused") {
       mode = "running";
       frameTimes = [];
       lastResult = 0;
-      status("camera", "已开启", "ready");
-      status("model", "已就绪", "ready");
+      status("camera", "On", "ready");
+      status("model", "Ready", "ready");
     }
-    status("audio", "已就绪", "ready");
+    status("audio", "Ready", "ready");
     clearNotes();
     if (action === "listen")
       songPlayer.play(song, Number($<HTMLSelectElement>("listen-speed").value));
@@ -711,7 +723,7 @@ async function prepareLearning(action: "start" | "resume" | "listen") {
   } catch (e) {
     if (generation !== lessonGeneration) return;
     songPlayer.stop();
-    status("audio", "加载失败", "error");
+    status("audio", "Loading failed", "error");
     showNotice(cameraError(e), true);
   } finally {
     if (generation === lessonGeneration) {
@@ -719,10 +731,10 @@ async function prepareLearning(action: "start" | "resume" | "listen") {
       renderLesson();
       updateUI();
     } else if (!lessonLoading && !demoLoading && mode === "stopped") {
-      // 切歌会取消“启动意图”，但可以复用已下载的采样；不要遗留“准备中”状态。
+      // Changing songs cancels startup intent but can reuse samples; do not leave a loading status behind.
       status(
         "audio",
-        audio.ready ? "已就绪" : "未加载",
+        audio.ready ? "Ready" : "Not loaded",
         audio.ready ? "ready" : "idle",
       );
       updateUI();
@@ -732,7 +744,7 @@ async function prepareLearning(action: "start" | "resume" | "listen") {
 
 $("song-grid").innerHTML = SONGS.map((song) => {
   const pitches = practiceNotes(song);
-  return `<button class="song-card" data-song="${song.id}" aria-pressed="false"><span>${song.difficulty}</span><strong>${song.title}</strong><small>${song.description}</small><em>${pitches.length} 个音 · ${noteName(Math.min(...pitches))}～${noteName(Math.max(...pitches))}</em></button>`;
+  return `<button class="song-card" data-song="${song.id}" aria-pressed="false"><span>${song.difficulty}</span><strong>${song.title}</strong><small>${song.description}</small><em>${pitches.length} notes · ${noteName(Math.min(...pitches))}–${noteName(Math.max(...pitches))}</em></button>`;
 }).join("");
 document
   .querySelectorAll<HTMLButtonElement>("[data-song]")
@@ -787,7 +799,7 @@ $("section-apply").addEventListener("click", () => {
     songSection(selectedSong, start, end);
   } catch {
     showNotice(
-      "范围无效：起始和结束须为曲目内的整数编号，且起始不大于结束。",
+      "Invalid range: use whole note numbers within the song, with start no greater than end.",
       true,
     );
     return;
@@ -822,7 +834,9 @@ $("listen-speed").addEventListener("change", () => {
   if (songPlayer.playing) {
     songPlayer.stop();
     renderLesson();
-    showNotice("试听速度已更改，点击试听从当前范围开头播放。");
+    showNotice(
+      "Preview speed changed. Click Preview song to play from the start of this range.",
+    );
   }
 });
 $("history-clear").addEventListener("click", () => {
@@ -831,7 +845,10 @@ $("history-clear").addEventListener("click", () => {
     history = [];
     renderHistory();
   } catch {
-    showNotice("浏览器未允许清除记录，请检查网站存储设置。", true);
+    showNotice(
+      "Your browser blocked clearing history. Check site storage settings.",
+      true,
+    );
   }
 });
 $("reach-start").addEventListener("click", () => {
@@ -840,17 +857,17 @@ $("reach-start").addEventListener("click", () => {
     return;
   }
   if (mode !== "running") {
-    showNotice("请先开启或继续摄像头演奏，再检查指尖是否能到达琴键。");
+    showNotice("Start or resume camera playback before checking key reach.");
     return;
   }
   suspendLearning();
   calibration = 0;
-  $("reach-start").textContent = "停止可达性检查";
+  $("reach-start").textContent = "Stop reach check";
   $("reach-status").textContent =
-    "请用指尖确认 C4，再检查 G4、C5；够不到时可调整“琴键布局”。";
+    "Use a fingertip to play C4, then G4 and C5. Adjust Keyboard layout if needed.";
 });
 function togglePause() {
-  // 课程可能在布局检查时单独暂停；优先恢复课程，避免第一次“继续”反而暂停摄像头。
+  // A reach check can pause the lesson alone. Resume it before considering camera state.
   if (lesson.state === "paused" && practicing) void prepareLearning("resume");
   else if (mode === "running") pause();
   else if (mode === "paused") void resume();
@@ -858,7 +875,7 @@ function togglePause() {
   else if (lesson.active) suspendLearning();
 }
 
-/** 将内存里的settings写回滑块、文字和开关，供首次加载或恢复默认时复用。 */
+/** Copy settings into sliders, labels, and switches on startup or reset. */
 function syncSettings() {
   $<HTMLInputElement>("volume").value = String(settings.volume);
   $("volume-value").textContent = `${settings.volume}%`;
@@ -878,13 +895,13 @@ function syncSettings() {
     $(`layout-${prop}-value`).textContent = `${settings.layout[prop]}%`;
   }
 }
-// 布局、悬停时间或手指模式变化后，不能沿用之前琴键上的占用与计时。
+// Layout, delay, or finger-mode changes invalidate old key ownership and hover timers.
 function resetInteraction() {
   clearNotes();
   keys = keyboardGeometry();
   hover.dwell = settings.dwell;
 }
-// 控件事件：先更新实际设置/交互，再同步界面并保存。音量变化无需重新计算琴键。
+// Update settings and input state before saving and refreshing controls. Volume needs no new geometry.
 $("start").addEventListener("click", () => void start());
 $("stop").addEventListener("click", () => void end());
 $("pause").addEventListener("click", togglePause);
@@ -924,42 +941,42 @@ $("reset").addEventListener("click", () => {
   audio.setVolume(settings.volume);
   syncSettings();
   persist();
-  showNotice("已恢复默认设置。");
+  showNotice("Default settings restored.");
 });
-// 鼠标试听只准备音频，允许没有摄像头的用户验证音色和琴键操作。
+// Mouse playback prepares audio alone, allowing use without a camera.
 $("demo").addEventListener("click", async () => {
   if (lesson.state === "paused") {
-    showNotice("请先继续练习，或切换到自由弹奏。");
+    showNotice("Resume practice or switch to Free play first.");
     return;
   }
   if (mode === "paused") {
-    showNotice("请先继续或结束演奏，再进行鼠标试听。");
+    showNotice("Resume or end the session before enabling mouse playback.");
     return;
   }
   if (mode === "starting" || mode === "stopping" || demoLoading) return;
   if (audio.ready) {
-    showNotice("音色已就绪，点击琴键即可试听。");
+    showNotice("Piano sounds are ready. Click a key to play.");
     return;
   }
   const current = ++demoToken;
   demoLoading = true;
   $("start").setAttribute("disabled", "");
   $("demo").setAttribute("disabled", "");
-  status("audio", "准备中", "loading");
+  status("audio", "Preparing", "loading");
   try {
     await audio.prepare((n) => {
-      if (current === demoToken) status("audio", `采样 ${n}/5`, "loading");
+      if (current === demoToken) status("audio", `Samples ${n}/5`, "loading");
     });
     if (current !== demoToken) return;
-    status("audio", "已就绪", "ready");
-    $("demo").textContent = "鼠标试听已就绪 ♪";
+    status("audio", "Ready", "ready");
+    $("demo").textContent = "Mouse playback ready ♪";
     showNotice(
-      "音色已就绪。按住琴键试听，松开后释放；也可用 Tab 选择音符，按空格或回车演奏。",
+      "Piano ready. Hold a key to play and release to stop. You can also Tab to a note and press Space or Enter.",
     );
     $("stop").removeAttribute("disabled");
   } catch (e) {
     if (current === demoToken) {
-      status("audio", "加载失败", "error");
+      status("audio", "Loading failed", "error");
       showNotice(cameraError(e), true);
     }
   } finally {
@@ -970,7 +987,7 @@ $("demo").addEventListener("click", async () => {
     }
   }
 });
-/** 将浏览器窗口中的鼠标坐标转成Canvas内部的逻辑坐标，补偿位置与显示缩放。 */
+/** Convert browser pointer coordinates to canvas logical coordinates, accounting for display scaling. */
 function pointerPosition(e: PointerEvent): Point {
   const r = canvas.getBoundingClientRect();
   return {
@@ -985,7 +1002,7 @@ canvas.addEventListener("pointermove", (e) => {
   if (pointers.has(e.pointerId))
     noteOwners.set(`pointer:${e.pointerId}`, key?.midi);
 });
-// 鼠标/触控按下直接占用音符，不走摄像头的悬停计时；松开、取消或移出时释放。
+// Mouse/touch presses own notes directly; release on pointer up, cancellation, or exit.
 canvas.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
   if (
@@ -1001,12 +1018,14 @@ canvas.addEventListener("pointerdown", (e) => {
     mode === "starting" ||
     mode === "stopping"
   ) {
-    showNotice("请先开始演奏，或点击页面底部“开启鼠标试听”。");
+    showNotice(
+      "Start playing or click Enable mouse playback at the bottom of the page.",
+    );
     return;
   }
   const key = hitKey(keys, pointerPosition(e));
   if (key) {
-    // 捕获这次指针操作，便于在拖动、抬起或取消时接收到后续事件并清理。
+    // Capture the pointer to receive later movement, release, and cancellation events reliably.
     canvas.setPointerCapture(e.pointerId);
     pointers.add(e.pointerId);
     noteOwners.set(`pointer:${e.pointerId}`, key.midi);
@@ -1026,7 +1045,7 @@ canvas.addEventListener("pointerleave", (e) => {
   pointerNote = undefined;
   releasePointer(e);
 });
-// Canvas图形不自带可聚焦琴键，另建音符按钮，支持Tab选择和空格/回车演奏。
+// Canvas keys are not focusable. Separate note buttons support Tab, Space, and Enter.
 const accessibleKeys = document.querySelector(".accessible-keys")!;
 [...keys]
   .sort((a, b) => a.midi - b.midi)
@@ -1034,7 +1053,7 @@ const accessibleKeys = document.querySelector(".accessible-keys")!;
     const button = document.createElement("button");
     button.textContent = key.note;
     button.dataset.midi = String(key.midi);
-    button.setAttribute("aria-label", `演奏 ${key.note}`);
+    button.setAttribute("aria-label", `Play ${key.note}`);
     button.setAttribute("aria-pressed", "false");
     button.addEventListener("keydown", (e) => {
       if ((e.key !== " " && e.key !== "Enter") || e.repeat) return;
@@ -1052,7 +1071,7 @@ const accessibleKeys = document.querySelector(".accessible-keys")!;
         mode === "starting" ||
         mode === "stopping"
       ) {
-        showNotice("请先开启鼠标试听或开始演奏。");
+        showNotice("Enable mouse playback or start playing first.");
         return;
       }
       keyboardHeld.add(String(key.midi));
@@ -1091,7 +1110,7 @@ dialog.addEventListener("click", (e) => {
       dialog.close();
   }
 });
-// 后台和失焦时清理交互，避免用户离开页面后仍保留按键或悬停状态。
+// Clear input on blur or backgrounding so abandoned keys cannot remain held.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     suspendLearning();
@@ -1112,8 +1131,8 @@ window.addEventListener("pagehide", () => {
   void audio.close();
 });
 
-// 逻辑坐标统一使用CSS像素；高DPR只增加画布背板像素，再通过setTransform保持坐标一致。
-// 这样高分屏更清晰，同时无需把指尖坐标和琴键位置再乘一次DPR。
+// Use CSS pixels for logic. DPR only scales the backing canvas via setTransform.
+// This keeps high-density displays sharp without scaling fingertip or key coordinates twice.
 function resize() {
   const r = $("stage").getBoundingClientRect();
   width = r.width;
@@ -1126,7 +1145,7 @@ function resize() {
 }
 new ResizeObserver(resize).observe($("stage"));
 let lastDpr = devicePixelRatio;
-// 每一对编号是一段手部骨骼，只负责可视化，不参与琴键命中。
+// Each pair is a visual skeleton segment; it does not affect hit testing.
 const connections = [
   [0, 1],
   [1, 2],
@@ -1150,7 +1169,7 @@ const connections = [
   [18, 19],
   [19, 20],
 ];
-/** 使用与命中检测相同的矩形绘制琴键；active表示已触发，candidate表示悬停确认中。 */
+/** Draw from the same rectangles used for hit testing. active and candidate are separate states. */
 function drawKey(key: PianoKey, active: boolean, candidate: boolean) {
   ctx.beginPath();
   ctx.rect(key.x, key.y, key.w, key.h);
@@ -1182,7 +1201,7 @@ function drawKey(key: PianoKey, active: boolean, candidate: boolean) {
     ctx.arc(key.x + key.w / 2, key.y + key.h - 38, 2.5, 0, Math.PI * 2);
     ctx.fill();
   }
-  // 教学目标独立于按下填充色；白键提示画在下半部，避免被后绘制的黑键遮挡。
+  // Draw teaching outlines independently of held-key fills, below the black keys on white keys.
   const target =
     calibration !== undefined
       ? reachTargets[calibration]
@@ -1205,9 +1224,9 @@ function drawKey(key: PianoKey, active: boolean, candidate: boolean) {
     ctx.fillText(isTarget ? "▼" : "!", key.x + key.w / 2, top + 17);
   }
 }
-/** 浏览器的绘画循环；每次刷新都绘图，但capture会自行限制推理提交频率。 */
+/** The drawing loop refreshes every frame; capture limits inference requests independently. */
 let lastFeedback = 0;
-/** 用户只看简明原因；展开诊断后才能看到具体时间和计数。 */
+/** Show concise input feedback; detailed timing and counters appear only in expanded diagnostics. */
 function updateInputFeedback(now: number) {
   if (now - lastFeedback < 150) return;
   lastFeedback = now;
@@ -1218,49 +1237,55 @@ function updateInputFeedback(now: number) {
   const active = states.find(([, s]) => s.active);
   let text: string;
   if (mode === "starting" || lessonLoading || demoLoading)
-    text = "正在准备，请等待音色与追踪就绪。";
+    text = "Getting ready. Please wait for sound and tracking.";
   else if (
     mode === "paused" ||
     (lesson.state === "paused" && calibration === undefined)
   )
     text =
       mode === "stopped"
-        ? "练习已暂停，摄像头未开启。继续后可用鼠标；手势演奏请先开启摄像头。"
-        : "已暂停：点击任一“继续”按钮恢复。摄像头连接会保留；结束演奏才会释放。";
+        ? "Practice paused; the camera is off. Resume to use the mouse, or start the camera for hand tracking."
+        : "Paused. Click Resume to continue. Your camera stays connected until you end the session.";
   else if (songPlayer.playing)
-    text = "正在试听：用户输入暂时关闭，停止试听后可开始练习。";
-  else if (!audio.ready) text = "音色尚未就绪：请开始演奏，或开启鼠标试听。";
+    text =
+      "Preview playing. Input is temporarily disabled. Stop the preview to practice.";
+  else if (!audio.ready)
+    text =
+      "Piano sounds are not ready. Start playing or enable mouse playback.";
   else if (settings.volume === 0)
-    text = "当前音量为0，琴键仍可触发；请调高演奏音量后试听。";
+    text =
+      "Volume is at zero. Keys still respond; turn up the volume to hear them.";
   else if (mode !== "running")
-    text = "鼠标/辅助键盘已就绪；使用手势还需要点击“开始演奏”开启摄像头。";
+    text =
+      "Mouse and keyboard are ready. Click Start playing to enable camera gestures.";
   else if (now - lastResult > 500)
     text =
       staleResults && lastFrameAge > 200
-        ? "识别结果延迟较大，已跳过旧画面。请减少其他程序负载并保持光线充足。"
-        : "等待最新手部画面，请将完整手掌放入镜头。";
+        ? "Tracking is delayed; old frames were skipped. Close busy apps and improve lighting."
+        : "Waiting for a fresh frame. Keep your whole hand in view.";
   else if (!renderHands.length)
-    text = "没有识别到手：请让手掌完整入镜，减少遮挡。";
+    text =
+      "No hands detected. Keep your whole palm visible and avoid obstructions.";
   else if (candidate)
-    text = `正在确认 ${candidate[1].key!.note}：${Math.round(hover.progress(candidate[0], now) * 100)}%。请保持指尖稳定${hover.cadence > 100 ? "，当前识别较慢，可能需要多停留片刻" : ""}。`;
+    text = `Confirming ${candidate[1].key!.note}: ${Math.round(hover.progress(candidate[0], now) * 100)}%. Keep your fingertip steady${hover.cadence > 100 ? "; tracking is slow, so hold a little longer" : ""}.`;
   else if (active)
-    text = `${active[1].key!.note} 已触发；声音会自然衰减，移开后重新进入才能再响。`;
+    text = `${active[1].key!.note} played. The sound fades naturally. Move away and return to play again.`;
   else
     text =
       settings.fingers === "index"
-        ? "仅双食指参与：请将食指圆点中心移到琴键内，白键可使用下半部。"
-        : "请将指尖圆点中心移到琴键内，黑键覆盖区域优先算黑键。";
+        ? "Index fingers only. Move the center of the fingertip marker inside a key. Use the lower half of white keys."
+        : "Move the center of a fingertip marker inside a key. Black keys take priority where keys overlap.";
   if ($("input-feedback").textContent !== text)
     $("input-feedback").textContent = text;
   if ($<HTMLDetailsElement>("diagnostics").open) {
     $("diagnostic-data").textContent = [
-      `有效识别间隔约 ${hover.cadence.toFixed(0)} ms；短暂漏检容忍 ${hover.graceMs.toFixed(0)} ms`,
-      `最近推理 ${lastInference.toFixed(0)} ms；帧龄 ${lastFrameAge.toFixed(0)} ms；跳过旧结果 ${staleResults} 次`,
-      `手势起音 ${hover.diagnostics.triggers} 次；切键/离开 ${hover.diagnostics.changes} 次；超时释放 ${hover.diagnostics.losses} 次；间隔重置 ${hover.diagnostics.gaps} 次`,
-      `最近原因：${hover.diagnostics.last}`,
+      `Tracking interval ~ ${hover.cadence.toFixed(0)} ms; gap tolerance ${hover.graceMs.toFixed(0)} ms`,
+      `Last inference ${lastInference.toFixed(0)} ms; frame age ${lastFrameAge.toFixed(0)} ms; stale frames skipped ${staleResults} times`,
+      `Gesture notes ${hover.diagnostics.triggers}; key changes/exits ${hover.diagnostics.changes}; timeout releases ${hover.diagnostics.losses}; gap resets ${hover.diagnostics.gaps} times`,
+      `Latest reason: ${hover.diagnostics.last}`,
       ...states.map(
         ([id, state]) =>
-          `${id} → ${state.key?.note ?? "区域外"}，${state.active ? "已触发" : `${Math.round(state.confirmedMs)} / ${hover.dwell} ms`}${state.interrupted ? "（漏检，进度冻结）" : ""}`,
+          `${id} → ${state.key?.note ?? "Outside keys"}, ${state.active ? "Triggered" : `${Math.round(state.confirmedMs)} / ${hover.dwell} ms`}${state.interrupted ? " (tracking lost; progress frozen)" : ""}`,
       ),
     ].join("\n");
   }
@@ -1275,16 +1300,16 @@ function draw(now: number) {
     lastDpr = devicePixelRatio;
     resize();
   }
-  // 清空的是透明覆盖层；摄像头视频由下面的video元素自行播放，无需在这里重画。
+  // Clear the transparent overlay. The video element plays the camera beneath it.
   ctx.clearRect(0, 0, width, height);
   if (mode === "running") {
     tracker.capture(now);
-    // 即使Worker迟迟不回结果，也按时间释放已经丢失的手指。
+    // Expire lost fingertips even if the worker has not returned another result.
     hover.expire(now);
   }
   if (mode === "running" && lastResult && now - lastResult > 300) {
     renderHands = [];
-    $("hand-count").textContent = "正在重新寻找双手";
+    $("hand-count").textContent = "Looking for your hands";
     $("fps").textContent = "0";
   }
   const active = noteOwners.active;
@@ -1334,10 +1359,10 @@ function draw(now: number) {
         ctx.stroke();
       }
     }
-  // 请求浏览器在下一次绘画时机再次调用本函数，而不是用无限循环阻塞网页。
+  // Request the next browser drawing opportunity without blocking the page in a loop.
   requestAnimationFrame(draw);
 }
-// 首次加载：显示已保存设置、更新初始状态，然后启动绘画循环。
+// Load saved settings, initialize the interface, and start the drawing loop.
 syncSettings();
 syncSection();
 renderLesson();

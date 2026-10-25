@@ -1,4 +1,4 @@
-/* 全局字体、配色与交互基础样式；--开头的变量可统一调整页面颜色。 */
+/* Global typography, colors, and interaction styles. CSS custom properties control the palette. */
 :root {
   font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
   color: #24352a;
@@ -10,7 +10,7 @@
   --accent: #c7efab;
   --dark: #111d16;
 }
-/* 曲库与练习区：延续原有配色，教学目标另用蓝色箭头与边框标识。 */
+/* Song library and practice use the existing palette; blue borders and arrows mark targets. */
 .learning {
   margin-bottom: 24px;
 }
@@ -361,7 +361,7 @@ button:not(:disabled):active {
 [hidden] {
   display: none !important;
 }
-/* 页头与介绍区。页面宽度居中限制，避免大屏上内容过度拉伸。 */
+/* Header and introduction. Constrain width so large displays remain readable. */
 .header {
   max-width: 1600px;
   margin: auto;
@@ -398,7 +398,7 @@ button:not(:disabled):active {
 .brand-cn {
   font-size: 14px;
   font-weight: 400;
-  letter-spacing: 3px;
+  letter-spacing: 0.5px;
   color: #65715f;
 }
 .header-right {
@@ -499,7 +499,7 @@ h1 span {
   stroke-width: 1;
   fill: none;
 }
-/* 演奏主体：桌面采用左演奏区、右设置面板两列布局。 */
+/* Desktop workspace: performance stage on the left, settings on the right. */
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 292px;
@@ -509,7 +509,7 @@ h1 span {
 .instrument {
   min-width: 0;
 }
-/* 演奏舞台：视频和透明Canvas使用同一个定位容器，保证两层画面对齐。 */
+/* Video and transparent canvas share one positioned stage for coordinate alignment. */
 .stage {
   aspect-ratio: 4/3;
   position: relative;
@@ -541,7 +541,7 @@ h1 span {
   border-radius: 12px;
   pointer-events: none;
 }
-/* contain保留视频比例与留白；scaleX镜像，与core.ts的横坐标反转配套。 */
+/* contain preserves aspect ratio; horizontal mirroring matches core.ts coordinate conversion. */
 #video {
   position: absolute;
   width: 100%;
@@ -658,7 +658,7 @@ canvas {
   line-height: 1.7;
   margin: 0;
 }
-/* 开始、暂停、结束按钮与当前音名。 */
+/* Start, pause, end, and current-note controls. */
 .transport {
   display: flex;
   align-items: center;
@@ -743,7 +743,7 @@ canvas {
   background: #9fae8c;
   flex-shrink: 0;
 }
-/* 右侧设置面板：设备状态、音量、悬停时间、手指与琴键布局。 */
+/* Settings panel: device status, volume, hover delay, fingers, and key layout. */
 .panel {
   background: #efefe5;
   border: 1px solid #e1e3d5;
@@ -1062,7 +1062,7 @@ footer button {
   font-size: 9px;
   padding: 6px 0 6px 5px;
 }
-/* 辅助音符按钮通常隐藏；键盘聚焦时显示，不能用display:none阻断焦点。 */
+/* Accessible keys stay focusable; do not use display:none to hide them. */
 .accessible-keys {
   height: 0;
   position: relative;
@@ -1155,7 +1155,7 @@ dialog p {
     opacity: 0.35;
   }
 }
-/* 响应式布局：大屏增加间距，中等屏幕压缩面板，窄屏改为单列。 */
+/* Responsive layout: reduce spacing on medium screens and stack columns on narrow screens. */
 @media (min-width: 1500px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr) 330px;
@@ -1386,7 +1386,7 @@ dialog p {
     margin-bottom: 12px;
   }
 }
-/* 尊重系统的减少动画设置，不影响演奏状态或识别逻辑。 */
+/* Respect reduced-motion preferences without changing playing or tracking behavior. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *:before,
@@ -1396,7 +1396,7 @@ dialog p {
   }
 }
 
-/* 限制桌面舞台高度，尽量让演奏控制按钮出现在首屏；窄屏另行精简提示。 */
+/* Limit desktop stage height to keep transport controls visible; simplify narrow-screen hints. */
 @media (min-width: 721px) {
   .stage {
     height: clamp(420px, calc(100dvh - 365px), 640px);

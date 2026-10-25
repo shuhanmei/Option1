@@ -6,7 +6,7 @@ export interface SongAudio {
   cancelScheduled(): void;
 }
 
-/** 用音频时钟预排短曲，定时器仅更新画面，不承担音符起止计时。 */
+/** Schedule short songs on the audio clock; the timer updates visuals rather than note timing. */
 export class SongPlayer {
   playing = false;
   current?: number;
@@ -19,7 +19,7 @@ export class SongPlayer {
 
   play(song: Song, speed = 1) {
     if (!Number.isFinite(speed) || speed < 0.5 || speed > 1.5)
-      throw new Error("试听速度应在0.5～1.5倍之间。");
+      throw new Error("Preview speed must be between 0.5× and 1.5×.");
     const error = validateSong(song);
     if (error) throw new Error(error);
     this.stop();
@@ -38,7 +38,7 @@ export class SongPlayer {
         return entry;
       });
     } catch (error) {
-      // 途中调度失败也要取消已排入音频时钟的音符。
+      // Cancel already scheduled notes if scheduling fails partway through.
       this.stop();
       throw error;
     }

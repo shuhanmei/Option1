@@ -1,14 +1,14 @@
 /**
- * 演奏规则模块，不直接访问摄像头、网页或扬声器，方便独立测试。
- * 数据流：手部关联与平滑 → 坐标换算 → 琴键命中 → 悬停确认 → 音符占用事件。
+ * Interaction rules independent of camera, DOM, and speakers for isolated testing.
+ * Data flow: hand association and smoothing -> coordinate mapping -> hit testing -> hover -> ownership events.
  */
 
-/** 二维点。模型输出使用0～1的相对坐标，映射到画布后使用CSS像素。 */
+/** 2D point. Model coordinates are normalized; mapped canvas coordinates use CSS pixels. */
 export interface Point {
   x: number;
   y: number;
 }
-/** 矩形：x、y是左上角，w、h是宽高；绘制与命中检测共用这些数据。 */
+/** Rectangle: x/y are the top-left corner, w/h are size. Drawing and hit testing share it. */
 export interface Rect {
   x: number;
   y: number;
@@ -16,11 +16,11 @@ export interface Rect {
   h: number;
 }
 export interface PianoKey extends Rect {
-  note: string; // 显示用的音名，如C4。
-  midi: number; // 表示音高的数字编号，C4为60，相邻半音相差1。
-  black: boolean; // 黑键需要覆盖白键，并优先参与命中判断。
+  note: string; // Display note name, such as C4.
+  midi: number; // MIDI pitch: C4 is 60, and each semitone changes the value by one.
+  black: boolean; // Black keys overlap white keys and take priority in hit testing.
 }
-/** 布局数值均为百分比；x、y表示在“放下琴键后剩余的空间”中的位置。 */
+/** Layout values are percentages. x/y position the keys within the remaining free space. */
 export interface Layout {
   width: number;
   height: number;
@@ -28,7 +28,7 @@ export interface Layout {
   y: number;
 }
 export const DEFAULT_LAYOUT: Layout = { width: 84, height: 30, x: 50, y: 64 };
-// C、D、E、F、G、A、B相对C的半音偏移，所以白键音高不是连续加1。
+// White-key semitone offsets relative to C are not consecutive integers.
 const WHITE = [0, 2, 4, 5, 7, 9, 11, 12];
 const NAMES = [
   "C4",
@@ -45,7 +45,7 @@ const NAMES = [
   "B4",
   "C5",
 ];
-/** C4～C5：8个白键、5个黑键；结果先白后黑。 */
+/** C4-C5: eight white keys and five black keys, returned white first. */
 export function makeKeys(
   width: number,
   height: number,
@@ -53,11 +53,11 @@ export function makeKeys(
 ): PianoKey[] {
   const w = (width * layout.width) / 100;
   const h = (height * layout.height) / 100;
-  // 例如区域宽1000、琴键宽840，x=50时，左侧留白为(1000-840)×50%=80。
+  // For width 1000, key width 840, and x=50, the left margin is (1000-840)*50%=80.
   const x = ((width - w) * layout.x) / 100;
   const y = ((height - h) * layout.y) / 100;
   const step = w / WHITE.length;
-  // 每个白键两侧各留1像素形成间隔；m决定音高，i决定横向位置。
+  // Leave a one-pixel gap on each side of a white key. m sets pitch; i sets position.
   const white = WHITE.map((m, i) => ({
     x: x + i * step + 1,
     y,
@@ -68,7 +68,7 @@ export function makeKeys(
     black: false,
   }));
   const black = [1, 3, 6, 8, 10].map((m) => {
-    // 黑键放在相邻白键的分界线上；0.29是黑键宽度0.58的一半。
+    // Center black keys on white-key boundaries; 0.29 is half their relative width, 0.58.
     const boundary = WHITE.filter((n) => n < m).length;
     return {
       x: x + boundary * step - step * 0.29,
@@ -82,7 +82,7 @@ export function makeKeys(
   });
   return [...white, ...black];
 }
-/** margin为正会扩大矩形，为负会收缩；用来提供进出琴键时的边界容差。 */
+/** Positive margin expands a rectangle; negative margin contracts it for boundary tolerance. */
 export function contains(r: Rect, p: Point, margin = 0): boolean {
   return (
     p.x >= r.x - margin &&
@@ -96,13 +96,13 @@ export function hitKey(
   p: Point,
   inset = 0,
 ): PianoKey | undefined {
-  // 黑键在数组后面，反向查找可优先命中黑键；先复制，避免修改绘制顺序。
+  // Reverse a copy to prioritize black keys without changing drawing order.
   return [...keys].reverse().find((key) => contains(key, p, -inset));
 }
 /**
- * 把模型相对坐标换成画布坐标，与视频的object-fit: contain保持一致。
- * 先等比例缩放，再加居中留白；镜像显示时只在这里反转一次横坐标。
- * sourceWidth/Height是原视频大小，width/height是画布的CSS显示大小。
+ * Map normalized model points to canvas pixels using the video's object-fit: contain transform.
+ * Scale proportionally, add centered margins, and mirror the horizontal coordinate exactly once.
+ * sourceWidth/Height describe the video; width/height describe the canvas in CSS pixels.
  */
 export function mapPoint(
   p: Point,
@@ -122,36 +122,36 @@ export function mapPoint(
 }
 export type NoteEvent = { type: "on" | "off"; midi: number };
 /**
- * 统一管理“谁占用了哪个音符”。Map保存：手指/鼠标/键盘编号 → MIDI音高。
- * 同音首次被占用时发送on，最后一个占用者离开时才发送off，避免多指互相打断。
- * emit是调用方传入的回调，由main.ts把事件转交给音频模块。
+ * Manage note ownership with a map from finger/mouse/keyboard IDs to MIDI pitches.
+ * Emit on for the first owner and off for the final owner so fingers do not interrupt each other.
+ * The caller supplies emit; main.ts forwards its events to the audio module.
  */
 export class NoteOwners {
   private owners = new Map<string, number>();
   constructor(private emit: (event: NoteEvent) => void) {}
-  /** 传入midi表示按下或切换音符；省略midi表示该输入释放当前音符。 */
+  /** Provide midi to press or change a note; omit it to release this input's note. */
   set(owner: string, midi?: number) {
     if (this.owners.get(owner) === midi) return;
-    // 先解除旧占用，再建立新占用；相同输入仍停在同音时已在上面直接返回。
+    // Remove old ownership before adding new ownership. Unchanged input/note pairs return earlier.
     const old = this.owners.get(owner);
     this.owners.delete(owner);
     if (old !== undefined && ![...this.owners.values()].includes(old))
       this.emit({ type: "off", midi: old });
-    // 已经有其他输入占用该音符时，只记录新占用，不重复起音。
+    // If another input already owns this note, record ownership without another attack.
     if (midi !== undefined) {
       const occupied = [...this.owners.values()].includes(midi);
       this.owners.set(owner, midi);
       if (!occupied) this.emit({ type: "on", midi });
     }
   }
-  /** 只释放指定来源，例如hand:前缀代表手指，不影响鼠标或键盘的占用。 */
+  /** Release only the requested source prefix, such as hand:, leaving mouse and keyboard owners intact. */
   releasePrefix(prefix: string) {
     for (const id of [...this.owners.keys()])
       if (id.startsWith(prefix)) this.set(id);
   }
   reset() {
     const active = this.active;
-    // 先清空再通知外部，使回调读取active时能得到“全部已释放”的正确状态。
+    // Clear first so callbacks observe an empty active-note set during release notifications.
     this.owners.clear();
     for (const midi of active) this.emit({ type: "off", midi });
   }
@@ -160,17 +160,17 @@ export class NoteOwners {
   }
 }
 interface FingerState {
-  key?: PianoKey; // 当前候选琴键；undefined表示区域外。
-  since: number; // 进入当前候选琴键的时间，单位毫秒。
-  lastSeen: number; // 最近一次观察到这根手指的时间，单位毫秒。
-  active: boolean; // 本次停留是否已经触发，用来防止逐帧重复起音。
-  point: Point; // 最新的画布坐标。
-  confirmedMs: number; // 仅累计连续有效观察支持的时间，丢帧期间不增加。
+  key?: PianoKey; // Current candidate key; undefined means outside all keys.
+  since: number; // Time of entry into the current candidate, in milliseconds.
+  lastSeen: number; // Last observation time for this fingertip, in milliseconds.
+  active: boolean; // Whether this entry has triggered, preventing repeated attacks on subsequent frames.
+  point: Point; // Latest point in canvas coordinates.
+  confirmedMs: number; // Accumulate time supported by consecutive valid observations, excluding missing frames.
   interrupted: boolean;
 }
 /**
- * 每根手指单独维护“区域外 → 候选悬停 → 已触发”的状态。
- * dwell是悬停确认时间，lostTimeout是丢手后的释放等待时间，均以毫秒计算。
+ * Each fingertip independently transitions through outside, candidate hover, and active states.
+ * dwell is confirmation time; lostTimeout is release delay after tracking loss, both in milliseconds.
  */
 export class HoverEngine {
   readonly states = new Map<string, FingerState>();
@@ -181,9 +181,9 @@ export class HoverEngine {
     gaps: 0,
     losses: 0,
     changes: 0,
-    last: "等待指尖进入琴键",
+    last: "Waiting for a fingertip over a key",
   };
-  /** 适应较慢设备，但最多容忍320ms；容错只保留状态，绝不自动起音。 */
+  /** Adapt to slower devices, capped at 320 ms. Tolerance preserves state but never triggers notes itself. */
   get graceMs() {
     return Math.min(320, Math.max(160, this.cadence * 2.5));
   }
@@ -206,7 +206,7 @@ export class HoverEngine {
         this.cadence = this.cadence * 0.65 + delta * 0.35;
     }
     this.lastUpdate = now;
-    // 短暂漏检保留已确认的进度，但返回的第一帧不能把空白期间算成停留。
+    // Brief tracking loss preserves progress, but the returning frame cannot count the missing interval.
     const seen = new Set(fingers.map((f) => f.id));
     for (const [id, state] of this.states) {
       if (!seen.has(id)) state.interrupted = true;
@@ -218,16 +218,16 @@ export class HoverEngine {
         now - state.lastSeen > (state.active ? this.releaseMs : this.graceMs)
       ) {
         this.diagnostics.gaps++;
-        this.diagnostics.last = "识别中断超时，重新确认";
+        this.diagnostics.last = "Tracking gap timed out; confirm again";
         this.notes.set(finger.id);
         this.states.delete(finger.id);
         state = undefined;
       }
       const raw = hitKey(keys, finger.point);
-      // 三种情况依次处理：
-      // 1. 明确进入另一个键：收缩进入边界，避免擦边触发。
-      // 2. 仍在旧键或其小范围外沿：保留旧键，减少抖动造成的反复释放。
-      // 3. 其余情况：重新命中；没有命中时target为空。
+      // Handle these cases in order:
+      // 1. Entering another key: contract the entry boundary to avoid edge triggers.
+      // 2. Remaining in the old key or its small outer margin: preserve it to reduce jitter.
+      // 3. Otherwise perform a fresh hit test; no hit leaves target undefined.
       const target =
         raw && raw.midi !== state?.key?.midi
           ? contains(raw, finger.point, -Math.min(2, raw.w * 0.025))
@@ -236,13 +236,13 @@ export class HoverEngine {
           : state?.key && contains(state.key, finger.point, state.key.w * 0.035)
             ? state.key
             : hitKey(keys, finger.point, raw ? Math.min(2, raw.w * 0.025) : 0);
-      // 初次出现、切换琴键或离开琴键时，释放旧占用并重新建立计时状态。
+      // On first appearance, key change, or exit, release old ownership and restart timing.
       if (!state || state.key?.midi !== target?.midi) {
         if (state?.key) {
           this.diagnostics.changes++;
           this.diagnostics.last = target
-            ? "切换琴键，重新确认"
-            : "指尖已离开琴键";
+            ? "Key changed; confirm again"
+            : "Fingertip left the key";
         }
         this.notes.set(finger.id);
         state = {
@@ -261,17 +261,17 @@ export class HoverEngine {
       state.interrupted = false;
       state.point = finger.point;
       state.lastSeen = now;
-      // 必须命中、尚未起音且停留足够久。active一旦为true，停留期间就不再起音。
+      // Trigger only with a hit, no previous attack, and sufficient confirmed time.
       if (target && !state.active && state.confirmedMs >= this.dwell) {
         state.active = true;
         this.diagnostics.triggers++;
-        this.diagnostics.last = `${target.note}已触发，移开后可重弹`;
+        this.diagnostics.last = `${target.note} played; move away to repeat`;
         this.notes.set(finger.id, target.midi);
       }
     }
     this.expire(now);
   }
-  /** main.ts每次绘画也会调用：即使识别结果中断，旧手指也能超时释放。 */
+  /** Called by draw as well: old fingers still time out if tracking results stop arriving. */
   expire(now: number) {
     for (const [id, state] of this.states)
       if (
@@ -279,7 +279,7 @@ export class HoverEngine {
         (state.active ? this.releaseMs : this.graceMs)
       ) {
         this.diagnostics.losses++;
-        this.diagnostics.last = "指尖识别已超时，已释放";
+        this.diagnostics.last = "Tracking timed out; note released";
         this.notes.set(id);
         this.states.delete(id);
       }
@@ -289,9 +289,9 @@ export class HoverEngine {
     this.states.clear();
     this.lastUpdate = undefined;
     this.cadence = 33;
-    this.diagnostics.last = "交互已清空，请重新进入琴键";
+    this.diagnostics.last = "Input cleared; move into a key again";
   }
-  /** 返回0～1的悬停进度，供界面绘制指尖外的进度圆环。 */
+  /** Return hover progress from 0 to 1 for the fingertip progress ring. */
   progress(id: string, now: number) {
     const s = this.states.get(id);
     return s?.key && now - s.lastSeen < this.graceMs
@@ -299,7 +299,7 @@ export class HoverEngine {
       : 0;
   }
 }
-// 保留模型的相对深度z，但当前二维琴键交互只使用x、y，不据此判断真实接触。
+// Keep relative depth z, but this 2D interaction uses x/y and does not infer physical contact.
 export interface Landmark extends Point {
   z?: number;
 }
@@ -315,8 +315,8 @@ interface Track {
   smooth: Map<number, Point>;
 }
 /**
- * 给前后帧中的同一只手关联短时身份，再平滑关键点位置。
- * 不能直接用模型数组下标当身份，因为左右手在返回数组中的顺序可能改变。
+ * Associate the same hand across nearby frames, then smooth landmark positions.
+ * Do not use the detection array index as identity: left/right order can change.
  */
 export class HandTracker {
   private tracks: Track[] = [];
@@ -329,11 +329,11 @@ export class HandTracker {
     now: number,
   ): { id: number; hand: Hand; points: Landmark[] }[] {
     this.tracks = this.tracks.filter((t) => now - t.seen < 350);
-    // 一条旧轨迹在当前帧最多匹配一次，避免两只新手同时借用同一个编号。
+    // Match an old track at most once per frame so two hands cannot borrow the same ID.
     const available = new Set(this.tracks);
     const results = hands.map((hand) => {
       const wrist = hand.landmarks[0];
-      // 手腕距离越近越可能是同一只手；标签不一致时增加0.04的比较代价。
+      // Closer wrists are more likely to match; a handedness mismatch adds a cost of 0.04.
       const ranked = [...available]
         .map((t) => ({
           t,
@@ -342,7 +342,7 @@ export class HandTracker {
             (t.label !== hand.label ? 0.04 : 0),
         }))
         .sort((a, b) => a.d - b.d);
-      // 前两种匹配太接近，或最近轨迹仍太远，都不强行复用身份。
+      // Do not force identity reuse when candidates are ambiguous or the nearest is too far away.
       const ambiguous =
         ranked.length > 1 && Math.abs(ranked[0].d - ranked[1].d) < 0.035;
       let track = !ambiguous && ranked[0]?.d < 0.23 ? ranked[0].t : undefined;
@@ -357,7 +357,7 @@ export class HandTracker {
         this.tracks.push(track);
       }
       available.delete(track);
-      // 按时间间隔计算平滑权重：间隔越长越信任新位置，35是毫秒时间常数。
+      // Use elapsed-time smoothing: longer gaps trust new positions more; the time constant is 35 ms.
       const alpha = 1 - Math.exp(-Math.max(1, now - track.seen) / 35);
       const points = hand.landmarks.map((p, i) => {
         const old = track!.smooth.get(i);
@@ -393,13 +393,13 @@ export const DEFAULT_SETTINGS: Settings = {
   skeleton: true,
   layout: DEFAULT_LAYOUT,
 };
-/** 校验本地存储：无效JSON使用默认值，合法数字也要限制在允许范围内。 */
+/** Validate stored settings: malformed JSON uses defaults, and numbers are clamped to allowed ranges. */
 export function readSettings(raw: string | null): Settings {
   const fallback = structuredClone(DEFAULT_SETTINGS);
   try {
     const data = JSON.parse(raw ?? "null");
     if (!data || typeof data !== "object") return fallback;
-    // v类型不对时用默认值；数值越界时截到上下限，防止损坏数据破坏界面。
+    // Use defaults for wrong types and clamp bounds so damaged storage cannot break the interface.
     const num = (v: unknown, def: number, min: number, max: number) =>
       typeof v === "number" && Number.isFinite(v)
         ? Math.max(min, Math.min(max, v))

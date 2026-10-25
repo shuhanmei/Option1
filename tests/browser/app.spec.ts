@@ -15,13 +15,13 @@ async function handFixture(): Promise<Buffer> {
   return fs.readFile("work/thumb_up.jpg");
 }
 
-test("首页、设置保存、鼠标音符与结束清理", async ({ page }) => {
+test("Home, saved settings, mouse notes, and end cleanup", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await expect(page).toHaveTitle("Air Piano · 指尖之间");
+  await expect(page).toHaveTitle("Air Piano · At Your Fingertips");
   await expect(
-    page.getByRole("heading", { name: "让空气，有了旋律。" }),
+    page.getByRole("heading", { name: "Give air a melody." }),
   ).toBeVisible();
   await page.locator("#all-fingers").click();
   await expect(page.locator("#all-fingers")).toHaveAttribute(
@@ -34,7 +34,7 @@ test("首页、设置保存、鼠标音符与结束清理", async ({ page }) => 
     "true",
   );
   await page.locator("#demo").click();
-  await expect(page.locator("#audio-status")).toHaveText("已就绪");
+  await expect(page.locator("#audio-status")).toHaveText("Ready");
   const box = (await page.locator("#canvas").boundingBox())!;
   // Default C4 lower half: width .84, white step /8, y .64*(1-.30).
   const videoWidth = Math.min(box.width, (box.height * 4) / 3);
@@ -48,7 +48,7 @@ test("首页、设置保存、鼠标音符与结束清理", async ({ page }) => 
   await page.mouse.up();
   await expect(page.locator("#notes")).toHaveText("—");
   await page.locator("#stop").click();
-  await expect(page.locator("#audio-status")).toHaveText("未加载");
+  await expect(page.locator("#audio-status")).toHaveText("Not loaded");
   await page.locator("#reset").click();
   await expect(page.locator("#index-fingers")).toHaveAttribute(
     "aria-pressed",
@@ -65,39 +65,39 @@ test("首页、设置保存、鼠标音符与结束清理", async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test("真实模型在 Worker 初始化、处理摄像头帧并支持暂停重启", async ({
+test("Initialize the real worker model, process camera frames, and pause/restart", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
   await page.locator("#start").click();
-  await expect(page.locator("#stage-state")).toHaveText("LIVE · 正在演奏", {
+  await expect(page.locator("#stage-state")).toHaveText("LIVE · Playing", {
     timeout: 50000,
   });
-  await expect(page.locator("#model-status")).toHaveText("已就绪");
+  await expect(page.locator("#model-status")).toHaveText("Ready");
   await expect(page.locator("#fps")).not.toHaveText("—", { timeout: 15000 });
   await page.locator("#pause").click();
-  await expect(page.locator("#stage-state")).toHaveText("已暂停");
+  await expect(page.locator("#stage-state")).toHaveText("Paused");
   await expect(page.locator("#notes")).toHaveText("—");
   await page.locator("#pause").click();
-  await expect(page.locator("#stage-state")).toHaveText("LIVE · 正在演奏");
+  await expect(page.locator("#stage-state")).toHaveText("LIVE · Playing");
   await page.locator("#stop").click();
-  await expect(page.locator("#camera-status")).toHaveText("未开启");
+  await expect(page.locator("#camera-status")).toHaveText("Off");
   expect(
     await page
       .locator("#video")
       .evaluate((v: HTMLVideoElement) => v.srcObject === null),
   ).toBe(true);
   await page.locator("#start").click();
-  await expect(page.locator("#stage-state")).toHaveText("LIVE · 正在演奏", {
+  await expect(page.locator("#stage-state")).toHaveText("LIVE · Playing", {
     timeout: 50000,
   });
   await page.locator("#stop").click();
   expect(errors).toEqual([]);
 });
 
-test("摄像头拒绝后提示原因并可重新尝试", async ({ page }) => {
+test("Explain camera permission denial and allow retry", async ({ page }) => {
   await page.addInitScript(() => {
     navigator.mediaDevices.getUserMedia = async () => {
       throw new DOMException("Denied", "NotAllowedError");
@@ -105,12 +105,14 @@ test("摄像头拒绝后提示原因并可重新尝试", async ({ page }) => {
   });
   await page.goto("/");
   await page.locator("#start").click();
-  await expect(page.locator("#notice")).toContainText("摄像头权限被拒绝");
+  await expect(page.locator("#notice")).toContainText(
+    "Camera permission denied",
+  );
   await expect(page.locator("#start")).toBeEnabled();
   await expect(page.locator("#notes")).toHaveText("—");
 });
 
-test("加载中结束，迟到的摄像头流会释放", async ({ page }) => {
+test("End during loading releases a late camera stream", async ({ page }) => {
   await page.addInitScript(() => {
     const get = navigator.mediaDevices.getUserMedia.bind(
       navigator.mediaDevices,
@@ -134,10 +136,10 @@ test("加载中结束，迟到的摄像头流会释放", async ({ page }) => {
         .every((t: MediaStreamTrack) => t.readyState === "ended"),
     ),
   ).toBe(true);
-  await expect(page.locator("#stage-state")).toHaveText("演奏空间");
+  await expect(page.locator("#stage-state")).toHaveText("Your stage");
 });
 
-test("窄屏布局保持可用", async ({ page }) => {
+test("Narrow-screen layout remains usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   expect(
@@ -152,7 +154,9 @@ test("窄屏布局保持可用", async ({ page }) => {
   });
 });
 
-test("本地真实模型识别官方手部图片，输出21个关键点", async ({ page }) => {
+test("Real local model identifies 21 landmarks in the official hand image", async ({
+  page,
+}) => {
   const bytes = Array.from(await handFixture());
   await page.goto("/");
   const result = await page.evaluate(async (bytes) => {
@@ -203,17 +207,19 @@ test("本地真实模型识别官方手部图片，输出21个关键点", async 
   );
 });
 
-test("采样加载失败可重试，键盘演奏与释放", async ({ page }) => {
+test("Retry failed samples and play/release with the keyboard", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.route("**/assets/piano/C4.mp3", (route) =>
     route.fulfill({ status: 503, body: "unavailable" }),
   );
   await page.locator("#demo").click();
-  await expect(page.locator("#audio-status")).toHaveText("加载失败");
+  await expect(page.locator("#audio-status")).toHaveText("Loading failed");
   await page.unroute("**/assets/piano/C4.mp3");
   await page.locator("#demo").click();
-  await expect(page.locator("#audio-status")).toHaveText("已就绪");
-  await page.getByRole("button", { name: "演奏 C4", exact: true }).focus();
+  await expect(page.locator("#audio-status")).toHaveText("Ready");
+  await page.getByRole("button", { name: "Play C4", exact: true }).focus();
   await page.keyboard.down("Space");
   await expect(page.locator("#notes")).toHaveText("C4");
   await page.keyboard.up("Space");
@@ -221,7 +227,9 @@ test("采样加载失败可重试，键盘演奏与释放", async ({ page }) => 
   await page.locator("#stop").click();
 });
 
-test("摄像头回放手部图像完成发音、丢手释放与重弹", async ({ page }) => {
+test("Camera replay triggers a note, releases on hand loss, and retriggers", async ({
+  page,
+}) => {
   const encoded = (await handFixture()).toString("base64");
   await page.addInitScript((encoded) => {
     (window as any).__attacks = 0;
@@ -266,13 +274,13 @@ test("摄像头回放手部图像完成发音、丢手释放与重弹", async ({
   }, encoded);
   await page.goto("/");
   await page.locator("#start").click();
-  await expect(page.locator("#stage-state")).toHaveText("LIVE · 正在演奏", {
+  await expect(page.locator("#stage-state")).toHaveText("LIVE · Playing", {
     timeout: 50000,
   });
-  await expect(page.locator("#hand-count")).toHaveText("1 只手已入镜", {
+  await expect(page.locator("#hand-count")).toHaveText("1 hands detected", {
     timeout: 30000,
   });
-  // 加入第8个白键后，同一张固定手部图片的食指落在F♯4区域。
+  // With the eighth white key, the fixture index finger lands in the F-sharp-4 region.
   await expect(page.locator("#notes")).toHaveText("F♯4", { timeout: 30000 });
   await page.waitForTimeout(500);
   await expect(page.locator("#notes")).toHaveText("F♯4");
@@ -297,7 +305,7 @@ test("摄像头回放手部图像完成发音、丢手释放与重弹", async ({
   await expect(page.locator("#notes")).toHaveText("—");
   await page.locator("#pause").click();
   await expect(page.locator("#notes")).toHaveText("F♯4", { timeout: 15000 });
-  // 同一真实模型回放还要验证教学分支：手指确认F♯4后只完成一个步骤。
+  // Also verify the lesson branch: confirming F-sharp-4 completes exactly one step.
   await page.evaluate(() => {
     (window as any).__showHand = false;
   });
@@ -305,12 +313,12 @@ test("摄像头回放手部图像完成发音、丢手释放与重弹", async ({
   await page.locator("#practice-mode").click();
   await page.locator('[data-song="steps"]').click();
   await page.locator("#lesson-start").click();
-  await expect(page.locator("#lesson-target")).toHaveText("▼ 请弹 C4");
+  await expect(page.locator("#lesson-target")).toHaveText("▼ Play C4");
   for (const midi of [60, 61, 62, 63, 64, 65]) {
     await page.locator(`.accessible-keys button[data-midi="${midi}"]`).focus();
     await page.keyboard.press("Space");
   }
-  await expect(page.locator("#lesson-target")).toHaveText("▼ 请弹 F♯4");
+  await expect(page.locator("#lesson-target")).toHaveText("▼ Play F♯4");
   await page.evaluate(() => {
     (window as any).__showHand = true;
   });
@@ -322,10 +330,12 @@ test("摄像头回放手部图像完成发音、丢手释放与重弹", async ({
   await page.locator("#stop").click();
 });
 
-test("四指触控同时演奏并在释放后结束和弦", async ({ page }) => {
+test("Four simultaneous touch notes form and release a chord", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.locator("#demo").click();
-  await expect(page.locator("#audio-status")).toHaveText("已就绪");
+  await expect(page.locator("#audio-status")).toHaveText("Ready");
   const box = (await page.locator("#canvas").boundingBox())!;
   const w = Math.min(box.width, (box.height * 4) / 3),
     h = (w * 3) / 4;
@@ -351,15 +361,18 @@ test("四指触控同时演奏并在释放后结束和弦", async ({ page }) => 
   await page.locator("#stop").click();
 });
 
-test("模型资源加载失败可重试", async ({ page }) => {
+test("Retry after model resource failure", async ({ page }) => {
   await page.goto("/");
   await page.route("**/assets/hand_landmarker.task", (route) =>
     route.fulfill({ status: 503, body: "unavailable" }),
   );
   await page.locator("#start").click();
-  await expect(page.locator("#notice")).toContainText("模型初始化失败", {
-    timeout: 45000,
-  });
+  await expect(page.locator("#notice")).toContainText(
+    "model initialization failed",
+    {
+      timeout: 45000,
+    },
+  );
   await expect(page.locator("#start")).toBeEnabled();
   expect(
     await page
@@ -368,13 +381,15 @@ test("模型资源加载失败可重试", async ({ page }) => {
   ).toBe(true);
   await page.unroute("**/assets/hand_landmarker.task");
   await page.locator("#start").click();
-  await expect(page.locator("#stage-state")).toHaveText("LIVE · 正在演奏", {
+  await expect(page.locator("#stage-state")).toHaveText("LIVE · Playing", {
     timeout: 50000,
   });
   await page.locator("#stop").click();
 });
 
-test("失焦和切换后台释放声音，结束释放摄像头轨道", async ({ page }) => {
+test("Blur and backgrounding release sound; ending releases camera tracks", async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     (window as any).__hidden = false;
     Object.defineProperty(document, "hidden", {
@@ -384,7 +399,7 @@ test("失焦和切换后台释放声音，结束释放摄像头轨道", async ({
   });
   await page.goto("/");
   await page.locator("#start").click();
-  await expect(page.locator("#stage-state")).toHaveText("LIVE · 正在演奏", {
+  await expect(page.locator("#stage-state")).toHaveText("LIVE · Playing", {
     timeout: 50000,
   });
   const box = (await page.locator("#canvas").boundingBox())!;
@@ -397,7 +412,7 @@ test("失焦和切换后台释放声音，结束释放摄像头轨道", async ({
   await page.mouse.down();
   await expect(page.locator("#notes")).toHaveText("C4");
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
-  await expect(page.locator("#stage-state")).toHaveText("已暂停");
+  await expect(page.locator("#stage-state")).toHaveText("Paused");
   await expect(page.locator("#notes")).toHaveText("—");
   await page.mouse.up();
   expect(
@@ -410,12 +425,12 @@ test("失焦和切换后台释放声音，结束释放摄像头轨道", async ({
       ),
   ).toBe(true);
   await page.locator("#pause").click();
-  await expect(page.locator("#stage-state")).toHaveText("LIVE · 正在演奏");
+  await expect(page.locator("#stage-state")).toHaveText("LIVE · Playing");
   await page.evaluate(() => {
     (window as any).__hidden = true;
     document.dispatchEvent(new Event("visibilitychange"));
   });
-  await expect(page.locator("#stage-state")).toHaveText("已暂停");
+  await expect(page.locator("#stage-state")).toHaveText("Paused");
   await page.evaluate(() => {
     (window as any).__hidden = false;
     document.dispatchEvent(new Event("visibilitychange"));
@@ -423,7 +438,7 @@ test("失焦和切换后台释放声音，结束释放摄像头轨道", async ({
       document.getElementById("video") as HTMLVideoElement
     ).srcObject;
   });
-  await expect(page.locator("#stage-state")).toHaveText("已暂停");
+  await expect(page.locator("#stage-state")).toHaveText("Paused");
   await page.locator("#stop").click();
   expect(
     await page.evaluate(() =>

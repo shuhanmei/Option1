@@ -4,8 +4,8 @@ import { SONGS, practiceNotes } from "../src/songs";
 import { SongPlayer } from "../src/song-player";
 import { Lesson } from "../src/lesson";
 
-describe("分段与练习记录", () => {
-  it("截取按实际音符编号计算，保留内部休止且不多带前后音符", () => {
+describe("Sections and practice history", () => {
+  it("Slice by actual note number, preserving internal rests and excluding adjacent notes", () => {
     const source = {
       ...SONGS[0],
       steps: [
@@ -28,7 +28,7 @@ describe("分段与练习记录", () => {
     ])
       expect(() => songSection(source, a, b)).toThrow();
   });
-  it("错误步骤只记录一次，暂停保留，开始新一轮清空", () => {
+  it("Record each mistaken step once, preserve on pause, and clear on a new round", () => {
     const lesson = new Lesson();
     lesson.start(songSection(SONGS[0], 0, 2));
     for (let i = 0; i < 2; i++) {
@@ -51,7 +51,7 @@ describe("分段与练习记录", () => {
     firstTry: 1,
     elapsedMs: 1000,
   };
-  it("损坏、未知曲目或越界记录被忽略，最多保留50条并丢弃额外字段", () => {
+  it("Ignore damaged, unknown-song, or out-of-range records; keep 50 and discard extra fields", () => {
     expect(readHistory("broken", SONGS)).toEqual([]);
     expect(readHistory('{"length":1}', SONGS)).toEqual([]);
     expect(
@@ -77,7 +77,7 @@ describe("分段与练习记录", () => {
       readHistory(JSON.stringify([{ ...row, extra: "untrusted" }]), SONGS)[0],
     ).toEqual(row);
   });
-  it("试听速度改变时值，不改变音高；无效速度不调度", () => {
+  it("Preview speed changes duration without pitch changes; invalid speeds schedule nothing", () => {
     const audio = { time: 0, schedule: vi.fn(), cancelScheduled: vi.fn() };
     const player = new SongPlayer(audio, vi.fn());
     player.play(songSection(SONGS[0], 0, 1), 0.5);

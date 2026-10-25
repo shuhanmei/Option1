@@ -1,6 +1,6 @@
 import { practiceNotes, type Song } from "./songs";
 
-/** 按“实际音符序号”截取，保留片段内部的休止和时值。start/end为含头不含尾。 */
+/** Slice by actual note index, preserving internal rests and durations. start/end are half-open. */
 export function songSection(song: Song, start: number, end: number): Song {
   const total = practiceNotes(song).length;
   if (
@@ -10,7 +10,7 @@ export function songSection(song: Song, start: number, end: number): Song {
     end > total ||
     start >= end
   )
-    throw new Error("请选择有效的练习音符范围。");
+    throw new Error("Select a valid practice note range.");
   let index = -1;
   return {
     ...song,
@@ -36,7 +36,7 @@ export interface PracticeRecord {
 }
 export const HISTORY_KEY = "air-piano:history:v1";
 
-/** 本地存储也作为不可信输入处理，限制字段、数量和范围；展示使用textContent。 */
+/** Treat local storage as untrusted: constrain fields, counts, and ranges; render with textContent. */
 export function readHistory(
   raw: string | null,
   songs: readonly Song[],

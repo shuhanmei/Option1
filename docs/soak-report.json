@@ -13,7 +13,7 @@
     {
       "elapsedMs": 30025,
       "heapBytes": 2623464,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -21,7 +21,7 @@
     {
       "elapsedMs": 60050,
       "heapBytes": 2644420,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 8
@@ -29,7 +29,7 @@
     {
       "elapsedMs": 90069,
       "heapBytes": 2644752,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -37,7 +37,7 @@
     {
       "elapsedMs": 120092,
       "heapBytes": 2646424,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -45,7 +45,7 @@
     {
       "elapsedMs": 150114,
       "heapBytes": 2644596,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -53,7 +53,7 @@
     {
       "elapsedMs": 180133,
       "heapBytes": 2644596,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -61,7 +61,7 @@
     {
       "elapsedMs": 210148,
       "heapBytes": 2646076,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 7
@@ -69,7 +69,7 @@
     {
       "elapsedMs": 240157,
       "heapBytes": 2596864,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 6
@@ -77,7 +77,7 @@
     {
       "elapsedMs": 270167,
       "heapBytes": 2591712,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -85,7 +85,7 @@
     {
       "elapsedMs": 300190,
       "heapBytes": 2590488,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 16
@@ -93,7 +93,7 @@
     {
       "elapsedMs": 330201,
       "heapBytes": 2592396,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 14
@@ -101,7 +101,7 @@
     {
       "elapsedMs": 360224,
       "heapBytes": 2590808,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 7
@@ -109,7 +109,7 @@
     {
       "elapsedMs": 390239,
       "heapBytes": 2588096,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -117,7 +117,7 @@
     {
       "elapsedMs": 420259,
       "heapBytes": 2586216,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 7
@@ -125,7 +125,7 @@
     {
       "elapsedMs": 450277,
       "heapBytes": 2588044,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 8
@@ -133,7 +133,7 @@
     {
       "elapsedMs": 480297,
       "heapBytes": 2587676,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 9
@@ -141,7 +141,7 @@
     {
       "elapsedMs": 510306,
       "heapBytes": 2586204,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -149,7 +149,7 @@
     {
       "elapsedMs": 540325,
       "heapBytes": 2586216,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 7
@@ -157,7 +157,7 @@
     {
       "elapsedMs": 570333,
       "heapBytes": 2587732,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 8
@@ -165,7 +165,7 @@
     {
       "elapsedMs": 600340,
       "heapBytes": 2586324,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -173,7 +173,7 @@
     {
       "elapsedMs": 630357,
       "heapBytes": 2598756,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 8
@@ -181,7 +181,7 @@
     {
       "elapsedMs": 660380,
       "heapBytes": 2598756,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 8
@@ -189,7 +189,7 @@
     {
       "elapsedMs": 690402,
       "heapBytes": 2588152,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 9
@@ -197,7 +197,7 @@
     {
       "elapsedMs": 720421,
       "heapBytes": 2587732,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 7
@@ -205,7 +205,7 @@
     {
       "elapsedMs": 750438,
       "heapBytes": 2588152,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 7
@@ -213,7 +213,7 @@
     {
       "elapsedMs": 780455,
       "heapBytes": 2586324,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 8
@@ -221,7 +221,7 @@
     {
       "elapsedMs": 810475,
       "heapBytes": 2600144,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 10
@@ -229,7 +229,7 @@
     {
       "elapsedMs": 840489,
       "heapBytes": 2598832,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 7
@@ -237,7 +237,7 @@
     {
       "elapsedMs": 870504,
       "heapBytes": 2586324,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 30,
       "inferenceMs": 9
@@ -245,7 +245,7 @@
     {
       "elapsedMs": 900014,
       "heapBytes": 2588140,
-      "state": "LIVE · 正在演奏",
+      "state": "LIVE · Playing",
       "note": "F4",
       "fps": 31,
       "inferenceMs": 8
